@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MathCheck AI — ЕГЭ №13</title>
+  <style>
+    :root{color-scheme:dark;--bg:#07101f;--panel:rgba(15,23,42,.84);--line:rgba(148,163,184,.19);--text:#f8fafc;--muted:#94a3b8;--accent:#f59e0b;--good:#34d399;--bad:#fb7185;--warn:#fbbf24}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 10% -10%,rgba(245,158,11,.13),transparent 28%),linear-gradient(180deg,#07101f,#0b1220 45%,#07101f);color:var(--text);min-height:100vh}
+    button,input,textarea{font:inherit}.shell{width:min(1260px,calc(100% - 32px));margin:auto;padding:26px 0 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}.brand{display:flex;gap:12px;align-items:center}.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#111827;font-weight:950}.brand h1{margin:0;font-size:25px}.brand p{margin:3px 0 0;color:var(--muted);font-size:13px}.version{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:7px 10px;border-radius:999px}
+    .progress{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}.prog{border:1px solid var(--line);border-radius:13px;padding:10px 12px;color:var(--muted);font-size:13px;background:rgba(15,23,42,.45)}.prog.active{color:#fff7ed;border-color:rgba(245,158,11,.55);background:rgba(245,158,11,.08)}.prog.done{color:#d1fae5;border-color:rgba(52,211,153,.34)}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.32);margin-bottom:18px;overflow:hidden}.head{padding:20px 22px 0}.head h2{margin:0;font-size:18px}.head p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.5}.body{padding:20px 22px 22px}.hidden{display:none!important}
+    label{display:block;font-size:12px;color:var(--muted);font-weight:800;margin-bottom:7px}.input,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(2,6,23,.52);color:var(--text);padding:12px 13px;outline:none}.input:focus,textarea:focus{border-color:rgba(245,158,11,.65);box-shadow:0 0 0 3px rgba(245,158,11,.09)}
+    .drop{margin-top:14px;border:1px dashed rgba(245,158,11,.48);border-radius:15px;padding:16px;display:grid;grid-template-columns:92px 1fr auto;gap:14px;align-items:center;background:rgba(245,158,11,.035)}.mini{width:92px;height:72px;border-radius:11px;object-fit:cover;background:#020617;border:1px solid var(--line)}.drop strong{display:block}.drop span{color:var(--muted);font-size:12px}.filebtn{position:relative;overflow:hidden}.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .btn{border:1px solid var(--line);background:rgba(148,163,184,.08);color:var(--text);border-radius:11px;padding:10px 14px;font-weight:850;cursor:pointer}.btn:disabled{opacity:.45;cursor:not-allowed}.primary{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#111827;border:0}.good{background:linear-gradient(135deg,#6ee7b7,#34d399);color:#052e24;border:0}.ghost{background:transparent}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px;align-items:center}.status{display:none;margin-top:13px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--muted);font-size:13px}.status.show{display:flex;gap:9px;align-items:center}.spin{width:16px;height:16px;border:2px solid rgba(148,163,184,.25);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+    .confirm{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(420px,1.1fr);gap:16px}.pane{border:1px solid var(--line);border-radius:15px;background:rgba(2,6,23,.28);overflow:hidden}.paneTitle{padding:11px 13px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:850}.scan{height:620px;overflow:auto;padding:12px;display:grid;place-items:start center}.scan img{max-width:100%;height:auto;background:white;border-radius:7px}
+    .edit{padding:14px;border-bottom:1px solid var(--line)}.edit:last-child{border-bottom:0}.edit h3{font-size:13px;margin:0 0 6px}.hint{font-size:12px;color:var(--muted);line-height:1.45;margin:0 0 9px}.equation{min-height:88px;resize:vertical;font-size:16px;line-height:1.5}.solution{min-height:300px;resize:vertical;font-size:16px;line-height:1.55}.mathbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.key{padding:6px 9px;border-radius:9px;border:1px solid var(--line);background:rgba(148,163,184,.08);color:#e2e8f0;cursor:pointer;font-weight:800;min-width:36px}.key:hover{border-color:rgba(245,158,11,.5)}.intervalRow{display:grid;grid-template-columns:1fr;gap:8px}.examples{font-size:11px;color:#cbd5e1;background:rgba(15,23,42,.52);border:1px solid var(--line);padding:8px 10px;border-radius:10px;margin-top:8px;line-height:1.5}.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.chip{border:1px solid rgba(251,191,36,.34);background:rgba(251,191,36,.07);color:#fde68a;border-radius:999px;padding:5px 8px;font-size:11px}
+    .resultGrid{display:grid;grid-template-columns:180px 1fr;gap:16px}.scorebox{border:1px solid rgba(245,158,11,.35);border-radius:15px;display:grid;place-items:center;text-align:center;background:rgba(245,158,11,.06);min-height:145px}.score{font-size:48px;font-weight:950}.summary{border:1px solid var(--line);border-radius:15px;padding:15px;background:rgba(2,6,23,.25)}.summary p{margin:7px 0;color:#dbeafe;line-height:1.5;font-size:14px}.muted{color:var(--muted)!important}.steps{display:grid;gap:8px;margin-top:15px}.step{border:1px solid var(--line);border-radius:13px;padding:12px 13px;background:rgba(15,23,42,.56)}.step.correct{border-color:rgba(52,211,153,.28)}.step.incorrect{border-color:rgba(251,113,133,.3)}.step strong{font-size:12px}.step pre{white-space:pre-wrap;margin:6px 0;font-size:12px}.step small{color:var(--muted)}.circle{display:none;margin-top:15px;background:white;border-radius:14px;padding:12px}.circle.show{display:block}.circle img{max-width:100%;max-height:430px;display:block;margin:auto}
+    details{margin-top:15px;border:1px solid var(--line);border-radius:13px;overflow:hidden}summary{cursor:pointer;padding:12px 14px;color:#cbd5e1;font-weight:800;font-size:12px}.tech{padding:12px;border-top:1px solid var(--line)}.techHead{display:flex;justify-content:space-between;align-items:center;margin:7px 0}.json{background:#020617;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:380px;overflow:auto;white-space:pre-wrap;font-size:11px;color:#cbd5e1}.toast{position:fixed;right:18px;bottom:18px;background:#0f172a;border:1px solid var(--line);padding:11px 13px;border-radius:11px;opacity:0;transform:translateY(15px);transition:.2s;max-width:420px}.toast.show{opacity:1;transform:none}
+    @media(max-width:860px){.confirm,.resultGrid{grid-template-columns:1fr}.drop{grid-template-columns:72px 1fr}.mini{width:72px;height:58px}.filebtn{grid-column:1/-1}.scan{height:400px}.version{display:none}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <div class="top"><div class="brand"><div class="logo">MC</div><div><h1>MathCheck AI</h1><p>ЕГЭ №13 · фото → проверка текста → оценивание</p></div></div><div class="version">2.9.7.10</div></div>
+  <div class="progress"><div id="p1" class="prog active">1 · Фото</div><div id="p2" class="prog">2 · Подтверждение</div><div id="p3" class="prog">3 · Результат</div></div>
+
+  <section class="card">
+    <div class="head"><h2>1. Загрузи работу</h2><p>На фото достаточно решения ученика. Исходное уравнение берём из первой строки решения. Полное печатное условие на фото не требуется.</p></div>
+    <div class="body">
+      <label for="studentId">ID ученика</label><input id="studentId" class="input" value="student-001" />
+      <div class="drop"><img id="mini" class="mini" alt="preview"><div><strong id="fileName">Выбери PNG, JPG или WEBP</strong><span>Оригинал отправляется без resize и recompress.</span></div><button class="btn filebtn">Выбрать фото<input id="file" type="file" accept="image/png,image/jpeg,image/webp"></button></div>
+      <div class="actions"><button id="scanBtn" class="btn primary" disabled>Распознать работу</button></div>
+      <div id="scanStatus" class="status"><span class="spin"></span><span id="scanStatusText"></span></div>
+    </div>
+  </section>
+
+  <section id="confirmCard" class="card hidden">
+    <div class="head"><h2>2. Проверь, что система прочитала</h2><p>Здесь не нужно писать полное условие. Подтверди только исходное уравнение, интервал пункта б и текст решения ученика.</p></div>
+    <div class="body">
+      <div class="confirm">
+        <div class="pane"><div class="paneTitle">Исходный скан</div><div class="scan"><img id="full" alt="Работа ученика"></div></div>
+        <div class="pane">
+          <div class="edit">
+            <h3>Исходное уравнение</h3><p class="hint">Берётся из первой строки решения. Исправь, если OCR ошибся.</p>
+            <textarea id="equationText" class="equation" spellcheck="false" placeholder="1 - cos 2x + √2 sin x = √2 - 2 sin(x + π)"></textarea>
+            <div class="mathbar" data-target="equationText"><button class="key" data-ins="π">π</button><button class="key" data-ins="√">√</button><button class="key" data-ins="²">²</button><button class="key" data-ins="³">³</button><button class="key" data-ins="±">±</button><button class="key" data-ins="∈ℤ">∈ℤ</button></div>
+            <div class="examples">Можно и с обычной клавиатуры: <b>pi/2</b>, <b>sqrt(2)</b>, <b>x^2</b>, <b>2*pi*n</b>. Спецсимволы необязательны.</div>
+          </div>
+          <div class="edit">
+            <h3>Интервал пункта б</h3><p class="hint">Если интервал есть на фото — подставится сам. Если его нет, введи вручную. Решение пункта б у ученика может отсутствовать — это не мешает указать интервал задания.</p>
+            <div class="intervalRow"><input id="intervalText" class="input" spellcheck="false" placeholder="-3π; -3π/2"></div>
+            <div class="mathbar" data-target="intervalText"><button class="key" data-ins="[">[</button><button class="key" data-ins="]">]</button><button class="key" data-ins=";">;</button><button class="key" data-ins="π">π</button><button class="key" data-ins="√">√</button><button class="key" data-ins="²">²</button></div>
+            <div class="examples">Можно написать просто <b>-3pi; -3pi/2</b>. Скобки сайт добавит сам.</div>
+          </div>
+          <div class="edit">
+            <h3>Решение ученика</h3><p class="hint">Оставляй ошибки ученика как есть. Исправляй только ошибки распознавания.</p>
+            <textarea id="solutionText" class="solution" spellcheck="false"></textarea>
+            <div class="mathbar" data-target="solutionText"><button class="key" data-ins="π">π</button><button class="key" data-ins="√">√</button><button class="key" data-ins="²">²</button><button class="key" data-ins="³">³</button><button class="key" data-ins="±">±</button><button class="key" data-ins="∈ℤ">∈ℤ</button></div>
+          </div>
+        </div>
+      </div>
+      <div id="chips" class="chips"></div>
+      <div class="actions"><button id="confirmBtn" class="btn good">Всё проверено — начать оценивание</button><button id="restoreBtn" class="btn ghost">Вернуть OCR</button></div>
+      <div id="gradeStatus" class="status"><span class="spin"></span><span id="gradeStatusText"></span></div>
+    </div>
+  </section>
+
+  <section id="resultCard" class="card hidden">
+    <div class="head"><h2>3. Результат проверки</h2><p>Оценка строится только по подтверждённым человеком данным.</p></div>
+    <div class="body">
+      <div class="resultGrid"><div class="scorebox"><div><div id="score" class="score">—</div><div id="status" class="muted">Ожидание</div></div></div><div class="summary"><p id="feedback"></p><p id="partA" class="muted"></p><p id="partB" class="muted"></p><p id="answer" class="muted"></p></div></div>
+      <div id="steps" class="steps"></div><div id="circle" class="circle"><img id="circleImg" alt="Тригонометрическая окружность"></div>
+      <details><summary>Технические данные / JSON для отправки</summary><div class="tech"><div class="techHead"><b>OCR JSON</b><button id="copyOcr" class="btn ghost">Скопировать</button></div><pre id="ocrJson" class="json">—</pre><div class="techHead"><b>Финальный JSON</b><button id="copyFinal" class="btn ghost">Скопировать</button></div><pre id="finalJson" class="json">—</pre></div></details>
+      <div class="actions"><button id="newBtn" class="btn">Проверить ещё работу</button></div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast"></div>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id); const st={file:null,url:null,ocr:null,final:null,timer:null,start:0};
+ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2500)}
+ function progress(n){[1,2,3].forEach(i=>{const e=$('p'+i);e.classList.toggle('active',i===n);e.classList.toggle('done',i<n)})}
+ function busy(box,text,label){st.start=Date.now();$(box).classList.add('show');clearInterval(st.timer);const u=()=>{const s=Math.floor((Date.now()-st.start)/1000);$(text).textContent=`${label} · ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};u();st.timer=setInterval(u,1000)}
+ function idle(box){clearInterval(st.timer);st.timer=null;$(box).classList.remove('show')}
+ async function json(res){let d;try{d=await res.json()}catch{throw new Error(`Сервер вернул не JSON (HTTP ${res.status})`)}if(!res.ok)throw new Error(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail||d));return d}
+ function pretty(x){return x?JSON.stringify(x,null,2):'—'}
+ function insert(targetId,text){const e=$(targetId);const a=e.selectionStart??e.value.length,b=e.selectionEnd??a;e.value=e.value.slice(0,a)+text+e.value.slice(b);e.focus();const p=a+text.length;e.setSelectionRange?.(p,p)}
+ document.querySelectorAll('.mathbar').forEach(bar=>bar.addEventListener('click',ev=>{const b=ev.target.closest('[data-ins]');if(!b)return;ev.preventDefault();insert(bar.dataset.target,b.dataset.ins)}));
+ function normalizeInterval(v){v=v.trim();if(!v)return'';if(v.includes(';')&&!['[','('].includes(v[0]))return`[${v}]`;return v}
+ function buildTask(eq,iv){return `а) Решите уравнение ${eq.trim()}. б) Найдите все корни этого уравнения, принадлежащие отрезку ${normalizeInterval(iv)}.`}
+ function fillDraft(){if(!st.ocr)return;$('equationText').value=st.ocr.display_task_equation||st.ocr.detected_task_equation||'';$('intervalText').value=st.ocr.display_interval||st.ocr.detected_interval||'';$('solutionText').value=st.ocr.display_transcript||st.ocr.transcript||''}
+ $('file').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;st.file=f;if(st.url)URL.revokeObjectURL(st.url);st.url=URL.createObjectURL(f);$('mini').src=st.url;$('full').src=st.url;$('fileName').textContent=`${f.name} · ${(f.size/1024).toFixed(0)} КБ`;$('scanBtn').disabled=false});
+ $('scanBtn').addEventListener('click',async()=>{if(!st.file)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText','Vision распознаёт работу');try{const fd=new FormData();fd.append('image',st.file);fd.append('student_id',$('studentId').value.trim()||'student-001');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photo',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'})}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});
+ $('restoreBtn').addEventListener('click',()=>{fillDraft();toast('OCR-черновик восстановлен')});
+ $('confirmBtn').addEventListener('click',async()=>{if(!st.ocr)return;const eq=$('equationText').value.trim(),iv=normalizeInterval($('intervalText').value),sol=$('solutionText').value.trim();if(!eq||!eq.includes('=')){toast('Проверь исходное уравнение: нужен знак =');$('equationText').focus();return}if(!iv||!iv.includes(';')){toast('Укажи интервал пункта б, например -3π; -3π/2');$('intervalText').focus();return}if(!sol){toast('Решение ученика не может быть пустым');return}$('confirmBtn').disabled=true;busy('gradeStatus','gradeStatusText','Solver → verifier → Grader → Reviewer');try{const payload={review_id:st.ocr.review_id,student_id:$('studentId').value.trim()||st.ocr.student_id||'student-001',task_type:'ege_13',confirmed_task_equation:eq,confirmed_interval:iv,task_statement:buildTask(eq,iv),confirmed_task_statement:buildTask(eq,iv),original_task_statement:st.ocr.original_task_statement||'',original_transcript:st.ocr.original_transcript||st.ocr.transcript||'',confirmed_transcript:sol};const d=await json(await fetch('/api/reviews/confirm-transcript',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}));st.final=d;$('finalJson').textContent=pretty(d);render(d);$('resultCard').classList.remove('hidden');progress(3);$('resultCard').scrollIntoView({behavior:'smooth'})}catch(e){toast('Ошибка проверки: '+e.message)}finally{idle('gradeStatus');$('confirmBtn').disabled=false}});
+ function render(d){const r=d.report||{},max=d.max_score??r.max_score??2,sc=d.final_score??r.score;$('score').textContent=sc==null?'—':`${sc}/${max}`;$('status').textContent=d.status||'Результат';$('feedback').textContent=r.expert_comment||d.feedback||'Проверка завершена';$('partA').textContent=r.part_a_comment?`а) ${r.part_a_comment}`:'';$('partB').textContent=r.part_b_comment?`б) ${r.part_b_comment}`:'';const a=[];if(r.correct_answer_part_a)a.push(`Правильный ответ а): ${r.correct_answer_part_a}`);if(r.correct_answer_part_b)a.push(`Правильный ответ б): ${r.correct_answer_part_b}`);$('answer').textContent=a.join('\n');$('steps').replaceChildren();(r.step_checks||d.grader_step_assessments||[]).forEach((x,i)=>{const e=document.createElement('div');e.className=`step ${String(x.status||'uncertain').toLowerCase()}`;e.innerHTML=`<strong>${x.status||'?'} · шаг ${i+1}</strong><pre></pre><small></small>`;e.querySelector('pre').textContent=x.text||x.step_id||'';e.querySelector('small').textContent=x.comment||'';$('steps').append(e)});const u=d.report_circle_url||r.correct_trig_circle_url;if(u){$('circleImg').src=u+(u.includes('?')?'&':'?')+'t='+Date.now();$('circle').classList.add('show')}else $('circle').classList.remove('show')}
+ async function copy(id){try{await navigator.clipboard.writeText($(id).textContent);toast('Скопировано')}catch{toast('Не удалось скопировать')}}$('copyOcr').onclick=()=>copy('ocrJson');$('copyFinal').onclick=()=>copy('finalJson');
+ $('newBtn').addEventListener('click',()=>{st.file=null;st.ocr=null;st.final=null;if(st.url)URL.revokeObjectURL(st.url);st.url=null;$('file').value='';$('mini').removeAttribute('src');$('full').removeAttribute('src');$('fileName').textContent='Выбери PNG, JPG или WEBP';$('scanBtn').disabled=true;$('confirmCard').classList.add('hidden');$('resultCard').classList.add('hidden');$('ocrJson').textContent='—';$('finalJson').textContent='—';progress(1);window.scrollTo({top:0,behavior:'smooth'})});
+})();
+</script>
+</body>
+</html>
