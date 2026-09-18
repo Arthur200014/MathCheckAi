@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+reports/*
+!reports/.gitkeep
+data/*.db
+data/pending_reviews/
+local_eval_data/
+evals/cases/*.png

@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor U as User
+    participant API as FastAPI
+    participant V as Vision Agent
+    participant S as Solver Agent
+    participant RV as SymPy Reference Verifier
+    participant G as Grader Agent
+    participant R as Reviewer Agent
+    participant T as Tools/SQLite
+
+    U->>API: one photo (task + student solution)
+    API->>V: original image bytes
+    V-->>API: draft task statement + draft student transcript + uncertainty metadata
+    API-->>U: show scan + two editable OCR fields
+    U->>API: confirmed task statement + confirmed student transcript
+    API->>S: confirmed task statement only
+    S-->>API: independent machine solution
+    API->>RV: solver spec + confirmed task statement
+    RV-->>API: verified reference / SymPy correction
+    API->>G: confirmed student transcript + verified reference + criteria
+    G-->>API: compact single-pass grading audit
+    API->>R: deterministic score + compact audit data
+    R-->>API: one-pass consistency audit
+    API->>T: render reference circle + save report/review
+    API-->>U: score + step report + circle URL + technical JSON

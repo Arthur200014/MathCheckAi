@@ -1,0 +1,16 @@
+[project]
+name = "mathcheck-ai"
+version = "0.2.5"
+description = "MathCheck AI — учебный мультиагентный MVP проверки решений по фото"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn[standard]==0.35.0",
+  "pydantic==2.11.7",
+  "langgraph==0.6.7",
+  "python-multipart==0.0.20",
+  "Pillow==11.3.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

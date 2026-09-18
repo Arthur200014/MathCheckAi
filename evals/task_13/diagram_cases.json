@@ -1,0 +1,160 @@
+{
+  "purpose": "Regression scenario catalog derived from the full expert pack for EGE task 13. No student images are stored here; only abstract expected behavior.",
+  "source": "sources/ЕГЭ_13_критерии_решения_сканы.pdf",
+  "cases": [
+    {
+      "id": "13.1.1",
+      "expert_score": 2,
+      "kind": "correct_rough_circle",
+      "expected": "DIAGRAM_VERIFIED",
+      "note": "Rough handwritten circle, roots correctly selected."
+    },
+    {
+      "id": "13.1.2",
+      "expert_score": 1,
+      "kind": "point_value_correspondence_error",
+      "expected": "DIAGRAM_INVALID",
+      "note": "Part a correct; numbered points are associated with wrong root values."
+    },
+    {
+      "id": "13.1.3",
+      "expert_score": 1,
+      "kind": "circle_structure_insufficient",
+      "expected": "DIAGRAM_INVALID_IF_CROSS_PASS_PROVEN; OTHERWISE_UNVERIFIED_NO_PENALTY",
+      "note": "Circle selection not accepted: boundaries/arc/selected roots are not adequately marked/labeled."
+    },
+    {
+      "id": "13.1.4",
+      "expert_score": 0,
+      "kind": "part_a_substantive_error",
+      "expected": "SCORE_0",
+      "note": "Simple trig equation solved incorrectly; diagram must not rescue part a."
+    },
+    {
+      "id": "13.2.1",
+      "expert_score": 2,
+      "kind": "correct_circle",
+      "expected": "DIAGRAM_VERIFIED"
+    },
+    {
+      "id": "13.2.2",
+      "expert_score": 1,
+      "kind": "integer_parameter_selection_error",
+      "expected": "PART_B_INCORRECT",
+      "note": "Selection error occurs in integer parameter calculation, not necessarily in visual circle reading."
+    },
+    {
+      "id": "13.2.3",
+      "expert_score": 1,
+      "kind": "root_outside_interval_on_arc",
+      "expected": "DIAGRAM_INVALID",
+      "note": "A marked root does not belong to the specified interval; answer also names a root incorrectly."
+    },
+    {
+      "id": "13.2.4",
+      "expert_score": 0,
+      "kind": "part_a_simple_trig_error",
+      "expected": "SCORE_0"
+    },
+    {
+      "id": "13.3.1",
+      "expert_score": 2,
+      "kind": "correct_rough_circle",
+      "expected": "DIAGRAM_VERIFIED"
+    },
+    {
+      "id": "13.3.2",
+      "expert_score": 1,
+      "kind": "integer_parameter_selection_error",
+      "expected": "PART_B_INCORRECT"
+    },
+    {
+      "id": "13.3.3",
+      "expert_score": 1,
+      "kind": "root_outside_interval_on_arc",
+      "expected": "DIAGRAM_INVALID"
+    },
+    {
+      "id": "13.3.4",
+      "expert_score": 0,
+      "kind": "part_a_trig_error",
+      "expected": "SCORE_0"
+    },
+    {
+      "id": "13.4.1",
+      "expert_score": 2,
+      "kind": "correct_non_circle_selection",
+      "expected": "NO_DIAGRAM_REQUIRED"
+    },
+    {
+      "id": "13.4.2",
+      "expert_score": 2,
+      "kind": "correct_circle",
+      "expected": "DIAGRAM_VERIFIED"
+    },
+    {
+      "id": "13.4.3",
+      "expert_score": 1,
+      "kind": "root_outside_interval_on_arc",
+      "expected": "DIAGRAM_INVALID"
+    },
+    {
+      "id": "13.4.4",
+      "expert_score": 0,
+      "kind": "part_a_factorization_error",
+      "expected": "SCORE_0"
+    },
+    {
+      "id": "13.5.1",
+      "expert_score": 1,
+      "kind": "selection_missing_and_nonroot_listed",
+      "expected": "PART_B_INCORRECT"
+    },
+    {
+      "id": "13.5.2",
+      "expert_score": 1,
+      "kind": "selection_arithmetic_error",
+      "expected": "PART_B_INCORRECT"
+    },
+    {
+      "id": "13.5.3",
+      "expert_score": 0,
+      "kind": "part_a_trig_error",
+      "expected": "SCORE_0"
+    },
+    {
+      "id": "13.6.1",
+      "expert_score": 1,
+      "kind": "computation_error_correct_sequence",
+      "expected": "SCORE_1"
+    },
+    {
+      "id": "13.6.2",
+      "expert_score": 0,
+      "kind": "noncomputational_quadratic_error",
+      "expected": "SCORE_0"
+    },
+    {
+      "id": "13.6.3",
+      "expert_score": 0,
+      "kind": "log_domain_substantive_error",
+      "expected": "SCORE_0"
+    }
+  ],
+  "synthetic_regressions": [
+    {
+      "id": "UNREADABLE-CORRECT-MATH",
+      "expert_score": 2,
+      "kind": "visual_unreadable_but_text_math_confirmed",
+      "expected": "SCORE_2_WITH_DIAGRAM_UNVERIFIED_WARNING",
+      "note": "If no student diagram error is proven and part a + selected roots are independently confirmed, unreadability is non-blocking."
+    },
+    {
+      "id": "PROVEN-DIAGRAM-ERROR-CORRECT-ROOT-LIST",
+      "expert_score": 1,
+      "kind": "cross_pass_confirmed_point_value_mismatch",
+      "expected": "DIAGRAM_INVALID_SCORE_1",
+      "note": "A proven circle error still reduces the score even when the unordered textual root list matches."
+    }
+  ]
+}

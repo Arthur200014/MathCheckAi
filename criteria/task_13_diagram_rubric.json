@@ -1,0 +1,51 @@
+{
+  "id": "ege13_trig_circle_v2_evidence_rule",
+  "source": "expert_pack_task_13_all_scans",
+  "principles": {
+    "diagram_shape_not_graded": true,
+    "do_not_guess_unreadable_symbols": true,
+    "do_not_use_reference_answer_in_visual_extraction": true,
+    "point_id_is_not_angle_value": true,
+    "full_angle_value_must_be_preserved": true,
+    "alternative_selection_methods_allowed": true
+  },
+  "required_when_circle_is_primary_selection_method": [
+    "interval_boundaries_understandable",
+    "considered_arc_understandable",
+    "selected_roots_understandable",
+    "root_or_point_labels_linkable"
+  ],
+  "automatic_verified": {
+    "minimum_positive_correspondences": 2,
+    "root_set_must_match_if_complete_claim_set_available": true,
+    "single_pass_allowed": true
+  },
+  "automatic_invalid": {
+    "requires_cross_pass_confirmation": true,
+    "examples": [
+      "two_or_more_confirmed_point_value_mismatches",
+      "confirmed_wrong_claimed_root_set",
+      "confirmed_false_written_root_equality",
+      "confirmed_missing_required_circle_structure_when_circle_is_primary"
+    ]
+  },
+  "manual_review": {
+    "on_low_confidence_after_reinspection": false,
+    "on_conflicting_visual_passes": false,
+    "on_only_one_geometric_mismatch": false,
+    "on_unreadable_key_label": false,
+    "rule": "unreadable_visual_evidence_is_nonblocking_when_text_and_deterministic_math_resolve_the_score",
+    "still_allowed_for_independent_math_or_semantic_ambiguity": true
+  },
+  "score_effect": {
+    "part_a_correct_and_diagram_invalid": 1,
+    "diagram_unverified": "no_penalty; continue_automatic_scoring_from_confirmed_text_and_deterministic_math",
+    "part_a_substantive_error": 0
+  },
+  "evidence_policy": {
+    "proven_error_can_reduce_score": true,
+    "unreadable_or_unresolved_visual_cannot_reduce_score": true,
+    "unreadable_or_unresolved_visual_does_not_force_manual_review": true,
+    "cross_pass_confirmation_required_for_diagram_invalid": true
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "task_type": "ege_13",
+  "max_score": 2,
+  "score_rules": {
+    "2": {
+      "all": [
+        "part_a_correct_and_justified",
+        "part_b_correct_and_justified"
+      ]
+    },
+    "1": {
+      "any": [
+        "part_a_correct_and_justified",
+        "computational_error_only_with_correct_overall_sequence_in_both_parts"
+      ],
+      "unless": [
+        "substantive_error_in_part_a"
+      ]
+    },
+    "0": {
+      "any": [
+        "part_a_missing",
+        "substantive_error_in_part_a",
+        "does_not_meet_score_1_or_2"
+      ]
+    }
+  },
+  "error_classes": {
+    "computation_error": "Локальная вычислительная ошибка при сохранении корректной математической схемы.",
+    "substantive_math_error": "Содержательная ошибка в математическом факте, преобразовании, ОДЗ, факторизации или решении простейшего уравнения.",
+    "root_selection_error": "Пункт а) корректен, но в пункте б) потерян нужный корень, добавлен лишний или неверно выбран целый параметр/граница.",
+    "diagram_selection_error": "Отбор по окружности не подтверждён корректным рисунком.",
+    "ambiguous": "По транскрипции нельзя надёжно классифицировать ошибку."
+  },
+  "manual_review_if": [
+    "part_a_status_uncertain",
+    "error_class_ambiguous",
+    "cannot_distinguish_computation_from_substantive_error",
+    "student_method_not_reliably_parsed",
+    "deterministic_checks_conflict_with_llm_assessment"
+  ],
+  "expert_examples": [
+    {
+      "pattern": "part_a_correct_part_b_wrong",
+      "score": 1
+    },
+    {
+      "pattern": "local_computation_error_but_correct_sequence_both_parts",
+      "score": 1
+    },
+    {
+      "pattern": "substantive_error_in_simple_trig_or_log_equation_or_domain",
+      "score": 0
+    },
+    {
+      "pattern": "both_parts_correct_and_justified",
+      "score": 2
+    }
+  ],
+  "diagram_rules": {
+    "applies_when_student_uses_selection_diagram": true,
+    "accepted_methods": [
+      "trig_circle",
+      "number_line",
+      "graph"
+    ],
+    "trig_circle_checks": [
+      "visible_point_position_matches_its_written_angle_or_root",
+      "point_id_matches_the_value_claimed_for_that_same_point",
+      "selected_root_set_matches_reference",
+      "do_not_ignore_diagram_error_only_because_unordered_root_list_matches"
+    ],
+    "clear_diagram_error_with_correct_part_a_score": 1,
+    "low_confidence_diagram_policy": "manual_review"
+  }
+}

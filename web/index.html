@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MathCheck AI — ЕГЭ №13</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07101f;
+      --panel: rgba(15, 23, 42, .82);
+      --panel-2: rgba(15, 23, 42, .58);
+      --line: rgba(148, 163, 184, .18);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-2: #fbbf24;
+      --good: #34d399;
+      --bad: #fb7185;
+      --warn: #fbbf24;
+      --info: #60a5fa;
+      --radius: 18px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .34);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% -10%, rgba(245, 158, 11, .13), transparent 28%),
+        radial-gradient(circle at 95% 15%, rgba(59, 130, 246, .10), transparent 28%),
+        linear-gradient(180deg, #07101f 0%, #0b1220 42%, #07101f 100%);
+      color: var(--text);
+    }
+
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell { width: min(1260px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 64px; }
+    .topbar { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 22px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 15px;
+      display: grid; place-items: center; font-weight: 900; color: #111827;
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      box-shadow: 0 14px 35px rgba(245, 158, 11, .23);
+    }
+    .brand h1 { font-size: clamp(20px, 3vw, 28px); margin: 0; letter-spacing: -.03em; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    .version { color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; white-space: nowrap; }
+
+    .progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 22px; }
+    .progress-step {
+      border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px;
+      color: var(--muted); background: rgba(15, 23, 42, .46); font-size: 13px;
+      display: flex; gap: 9px; align-items: center; min-width: 0;
+    }
+    .progress-step strong { color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .progress-step.active { color: #fff7ed; border-color: rgba(245,158,11,.55); background: rgba(245,158,11,.09); }
+    .progress-step.done { color: #d1fae5; border-color: rgba(52,211,153,.36); background: rgba(52,211,153,.06); }
+    .dot { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 999px; display: grid; place-items: center; background: rgba(148,163,184,.12); font-size: 11px; font-weight: 800; }
+    .active .dot { background: var(--accent); color: #111827; }
+    .done .dot { background: var(--good); color: #052e24; }
+
+    .card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+      box-shadow: var(--shadow); backdrop-filter: blur(18px); overflow: hidden; margin-bottom: 18px;
+    }
+    .card-head { padding: 20px 22px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .card-head h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .card-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .card-body { padding: 20px 22px 22px; }
+
+    .form-grid { display: grid; grid-template-columns: 280px 1fr; gap: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 7px; font-weight: 700; }
+    .input, textarea {
+      width: 100%; border: 1px solid var(--line); border-radius: 13px; color: var(--text);
+      background: rgba(2, 6, 23, .48); outline: none; padding: 12px 13px;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .input:focus, textarea:focus { border-color: rgba(245,158,11,.66); box-shadow: 0 0 0 3px rgba(245,158,11,.10); background: rgba(2, 6, 23, .7); }
+    #taskOcrText { min-height: 150px; height: 150px; resize: vertical; line-height: 1.5; font-family: inherit; font-size: 16px; }
+    #ocrText { min-height: 330px; height: 330px; resize: vertical; line-height: 1.55; font-family: inherit; font-size: 16px; }
+    .edit-stack { display: grid; grid-template-rows: auto 1fr; min-height: 500px; }
+    .edit-block { min-height: 0; }
+    .edit-block + .edit-block { border-top: 1px solid var(--line); }
+    .edit-label { padding: 10px 13px; color: var(--muted); font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; gap: 10px; background: rgba(15,23,42,.28); }
+    .edit-stack textarea { width: 100%; border: 0; border-radius: 0; background: transparent; }
+
+    .dropzone {
+      margin-top: 14px; border: 1px dashed rgba(245,158,11,.48); border-radius: 16px; padding: 16px;
+      background: rgba(245,158,11,.035); display: grid; grid-template-columns: 92px 1fr auto; gap: 15px; align-items: center;
+    }
+    .preview-mini { width: 92px; height: 72px; border-radius: 12px; object-fit: cover; background: rgba(2,6,23,.7); border: 1px solid var(--line); }
+    .drop-copy strong { display: block; font-size: 14px; }
+    .drop-copy span { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+    .file-button { position: relative; overflow: hidden; }
+    .file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      border: 1px solid var(--line); background: rgba(148,163,184,.08); color: var(--text);
+      border-radius: 12px; padding: 11px 15px; font-weight: 800; transition: transform .15s ease, opacity .15s ease, border-color .15s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(148,163,184,.36); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { color: #111827; border-color: transparent; background: linear-gradient(135deg, var(--accent-2), var(--accent)); }
+    .btn-good { color: #052e24; border-color: transparent; background: linear-gradient(135deg, #6ee7b7, #34d399); }
+    .btn-ghost { background: transparent; }
+
+    .status-box { margin-top: 14px; border: 1px solid var(--line); border-radius: 13px; padding: 12px 13px; color: var(--muted); font-size: 13px; display: none; }
+    .status-box.show { display: flex; align-items: center; gap: 10px; }
+    .spinner { width: 17px; height: 17px; border: 2px solid rgba(148,163,184,.25); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .confirm-grid { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(360px, 1.1fr); gap: 16px; }
+    .scan-pane, .text-pane { border: 1px solid var(--line); border-radius: 15px; background: rgba(2,6,23,.28); min-height: 500px; overflow: hidden; }
+    .pane-title { padding: 11px 13px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; gap: 10px; }
+    .scan-wrap { height: 500px; overflow: auto; display: grid; place-items: start center; padding: 12px; }
+    #fullPreview { max-width: 100%; height: auto; border-radius: 8px; background: #fff; }
+    .uncertain { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid rgba(251,191,36,.35); background: rgba(251,191,36,.07); color: #fde68a; border-radius: 999px; padding: 6px 9px; font-size: 12px; }
+
+    .result-hero { display: grid; grid-template-columns: 180px 1fr; gap: 18px; align-items: stretch; }
+    .score-box { border: 1px solid rgba(245,158,11,.35); border-radius: 16px; background: rgba(245,158,11,.06); min-height: 150px; display: grid; place-items: center; text-align: center; padding: 16px; }
+    .score { font-size: 48px; line-height: .95; font-weight: 950; letter-spacing: -.06em; }
+    .score-label { margin-top: 9px; color: var(--muted); font-size: 12px; }
+    .summary { border: 1px solid var(--line); border-radius: 16px; background: rgba(2,6,23,.25); padding: 16px; }
+    .summary h3 { margin: 0 0 10px; font-size: 15px; }
+    .summary p { margin: 8px 0; color: #dbeafe; line-height: 1.55; font-size: 14px; }
+    .summary .muted { color: var(--muted); }
+
+    .steps { display: grid; gap: 9px; margin-top: 16px; }
+    .step { border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); padding: 13px 14px; display: grid; grid-template-columns: 34px 1fr; gap: 11px; }
+    .step-badge { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 900; background: rgba(148,163,184,.1); }
+    .step.correct .step-badge { background: rgba(52,211,153,.16); color: #a7f3d0; }
+    .step.incorrect .step-badge { background: rgba(251,113,133,.14); color: #fecdd3; }
+    .step.uncertain .step-badge { background: rgba(251,191,36,.13); color: #fde68a; }
+    .step-text { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.45; }
+    .step-comment { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+    .circle { margin-top: 16px; border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(255,255,255,.98); display: none; }
+    .circle.show { display: block; }
+    .circle img { max-width: 100%; max-height: 460px; display: block; margin: 0 auto; }
+
+    details.tech { border: 1px solid var(--line); border-radius: 16px; background: rgba(2,6,23,.3); overflow: hidden; margin-top: 14px; }
+    details.tech summary { cursor: pointer; padding: 14px 15px; color: #cbd5e1; font-weight: 800; font-size: 13px; user-select: none; }
+    .tech-body { border-top: 1px solid var(--line); padding: 14px; }
+    .json-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .json-head strong { font-size: 12px; color: var(--muted); }
+    pre.json { margin: 0; padding: 13px; border-radius: 12px; max-height: 440px; overflow: auto; background: #020617; border: 1px solid rgba(148,163,184,.13); color: #cbd5e1; font-size: 11.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .hidden { display: none !important; }
+    .toast { position: fixed; right: 18px; bottom: 18px; max-width: min(430px, calc(100% - 36px)); background: #0f172a; border: 1px solid var(--line); box-shadow: var(--shadow); padding: 12px 14px; border-radius: 13px; color: #e2e8f0; transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s ease; z-index: 30; font-size: 13px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 860px) {
+      .form-grid, .confirm-grid, .result-hero { grid-template-columns: 1fr; }
+      .dropzone { grid-template-columns: 72px 1fr; }
+      .preview-mini { width: 72px; height: 60px; }
+      .file-button { grid-column: 1 / -1; }
+      .scan-pane, .text-pane { min-height: 380px; }
+      .scan-wrap { min-height: 380px; height: 380px; }
+      .edit-stack { min-height: 380px; }
+      #taskOcrText { min-height: 130px; height: 130px; }
+      #ocrText { min-height: 250px; height: 250px; }
+      .version { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">M</div>
+        <div>
+          <h1>MathCheck AI</h1>
+          <p>Проверка ЕГЭ №13: одно фото → проверка текста → экспертный отчёт</p>
+        </div>
+      </div>
+      <div class="version">2.9.7.8 · readable editor</div>
+    </div>
+
+    <div class="progress" aria-label="Этапы проверки">
+      <div id="p1" class="progress-step active"><span class="dot">1</span><strong>Загрузить решение</strong></div>
+      <div id="p2" class="progress-step"><span class="dot">2</span><strong>Проверить текст</strong></div>
+      <div id="p3" class="progress-step"><span class="dot">3</span><strong>Получить отчёт</strong></div>
+    </div>
+
+    <section id="uploadCard" class="card">
+      <div class="card-head">
+        <div>
+          <h2>1. Загрузить работу целиком</h2>
+          <p>На одном фото должны быть видны условие и решение. Vision распознает оба за один проход; проверка не начнётся до твоего подтверждения.</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-grid" style="grid-template-columns:minmax(260px,420px)">
+          <div class="field">
+            <label for="studentId">Код / ID ученика</label>
+            <input id="studentId" class="input" value="student-001" autocomplete="off" />
+          </div>
+        </div>
+        <p style="margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5">Условие отдельно вводить не нужно: Vision возьмёт с этого же фото формулировку задания, уравнение и интервал. На следующем шаге ты проверишь и условие, и решение.</p>
+
+        <div class="dropzone">
+          <img id="miniPreview" class="preview-mini" alt="Предпросмотр" />
+          <div class="drop-copy">
+            <strong id="fileName">Выбери PNG, JPG или WEBP</strong>
+            <span>Максимум 12 МБ. Изображение отправляется в исходном качестве.</span>
+          </div>
+          <label class="btn file-button">Выбрать фото<input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+        </div>
+
+        <div class="actions">
+          <button id="scanBtn" class="btn btn-primary" disabled>Распознать условие и решение</button>
+          <button id="resetBtn" class="btn btn-ghost" type="button">Новая проверка</button>
+        </div>
+        <div id="scanStatus" class="status-box"><span class="spinner"></span><span id="scanStatusText"></span></div>
+      </div>
+    </section>
+
+    <section id="confirmCard" class="card hidden">
+      <div class="card-head">
+        <div>
+          <h2>2. Проверь условие и решение</h2>
+          <p>Исправь OCR в обоих полях. Именно подтверждённые тобой условие и решение станут источником истины для проверки.</p>
+        </div>
+        <button id="restoreOcrBtn" class="btn btn-ghost" type="button">Вернуть OCR</button>
+      </div>
+      <div class="card-body">
+        <div class="confirm-grid">
+          <div class="scan-pane">
+            <div class="pane-title"><span>Исходный скан</span><span>для сверки</span></div>
+            <div class="scan-wrap"><img id="fullPreview" alt="Исходная работа ученика" /></div>
+          </div>
+          <div class="text-pane">
+            <div class="pane-title"><span>Распознанный текст</span><span>оба поля редактируются</span></div>
+            <div class="edit-stack">
+              <div class="edit-block">
+                <div class="edit-label"><span>Условие задания · редактируй обычным текстом</span><span>формула + пункт б / интервал</span></div>
+                <textarea id="taskOcrText" spellcheck="false" placeholder="Если условие не попало в кадр, введи его здесь вручную обычным текстом."></textarea>
+              </div>
+              <div class="edit-block">
+                <div class="edit-label"><span>Решение ученика · обычные символы: π, √, /, sin, cos</span><span>как написано на работе</span></div>
+                <textarea id="ocrText" spellcheck="false" placeholder="Исправь распознанное решение обычными символами: π, √, sin, cos, /, ∈ ℤ"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="uncertainWrap" class="uncertain"></div>
+        <div class="actions">
+          <button id="confirmBtn" class="btn btn-good">Условие и решение проверены — начать проверку</button>
+          <span style="color:var(--muted);font-size:12px">После нажатия работают Solver → verifier → Grader → Reviewer.</span>
+        </div>
+        <div id="gradeStatus" class="status-box"><span class="spinner"></span><span id="gradeStatusText"></span></div>
+      </div>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <div class="card-head">
+        <div>
+          <h2>3. Результат проверки</h2>
+          <p>Итог строится по подтверждённым человеком условию и решению и детерминированным математическим проверкам.</p>
+        </div>
+        <button id="newBtn" class="btn btn-ghost" type="button">Проверить ещё работу</button>
+      </div>
+      <div class="card-body">
+        <div class="result-hero">
+          <div class="score-box">
+            <div>
+              <div id="scoreText" class="score">—</div>
+              <div id="scoreStatus" class="score-label">Ожидание результата</div>
+            </div>
+          </div>
+          <div class="summary">
+            <h3 id="resultTitle">ЕГЭ №13</h3>
+            <p id="expertComment"></p>
+            <p id="partAComment" class="muted"></p>
+            <p id="partBComment" class="muted"></p>
+            <p id="correctAnswer" class="muted"></p>
+          </div>
+        </div>
+
+        <div id="steps" class="steps"></div>
+
+        <div id="circleBox" class="circle">
+          <img id="circleImg" alt="Эталонная тригонометрическая окружность" />
+        </div>
+
+        <details class="tech">
+          <summary>Технические данные / JSON для отправки</summary>
+          <div class="tech-body">
+            <div class="json-head"><strong>Ответ после OCR</strong><button id="copyOcrBtn" class="btn btn-ghost" type="button">Скопировать OCR JSON</button></div>
+            <pre id="ocrJson" class="json">—</pre>
+            <div style="height:12px"></div>
+            <div class="json-head"><strong>Финальный ответ проверки</strong><button id="copyFinalBtn" class="btn btn-ghost" type="button">Скопировать итоговый JSON</button></div>
+            <pre id="finalJson" class="json">—</pre>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const state = { file: null, previewUrl: null, ocr: null, final: null, timer: null, startedAt: 0 };
+      const LAST_RESULT_KEY = 'mathcheck-ege13-last-result';
+
+      function toast(message) {
+        const el = $('toast');
+        el.textContent = message;
+        el.classList.add('show');
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.classList.remove('show'), 2200);
+      }
+
+      function prettyJson(value) {
+        return value ? JSON.stringify(value, null, 2) : '—';
+      }
+
+      function setProgress(step) {
+        [1,2,3].forEach((n) => {
+          const el = $('p' + n);
+          el.classList.toggle('active', n === step);
+          el.classList.toggle('done', n < step);
+        });
+      }
+
+      function showBusy(boxId, textId, label) {
+        const box = $(boxId), text = $(textId);
+        state.startedAt = Date.now();
+        box.classList.add('show');
+        const update = () => {
+          const sec = Math.floor((Date.now() - state.startedAt) / 1000);
+          const m = Math.floor(sec / 60), s = String(sec % 60).padStart(2, '0');
+          text.textContent = `${label} · ${m}:${s}`;
+        };
+        update();
+        clearInterval(state.timer);
+        state.timer = setInterval(update, 1000);
+      }
+
+      function hideBusy(boxId) {
+        clearInterval(state.timer);
+        state.timer = null;
+        $(boxId).classList.remove('show');
+      }
+
+      async function parseResponse(res) {
+        let data;
+        try { data = await res.json(); }
+        catch (_) { throw new Error(`Сервер вернул не JSON (HTTP ${res.status}).`); }
+        if (!res.ok) {
+          const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data);
+          throw new Error(detail || `HTTP ${res.status}`);
+        }
+        return data;
+      }
+
+      function resetAll() {
+        state.file = null; state.ocr = null; state.final = null;
+        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+        state.previewUrl = null;
+        $('imageInput').value = '';
+        $('miniPreview').removeAttribute('src'); $('fullPreview').removeAttribute('src');
+        $('fileName').textContent = 'Выбери PNG, JPG или WEBP';
+        $('scanBtn').disabled = true;
+        $('confirmCard').classList.add('hidden'); $('resultCard').classList.add('hidden');
+        $('taskOcrText').value = ''; $('ocrText').value = ''; $('uncertainWrap').replaceChildren();
+        $('ocrJson').textContent = '—'; $('finalJson').textContent = '—';
+        hideBusy('scanStatus'); hideBusy('gradeStatus');
+        setProgress(1);
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      }
+
+      $('imageInput').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        state.file = file;
+        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+        state.previewUrl = URL.createObjectURL(file);
+        $('miniPreview').src = state.previewUrl;
+        $('fullPreview').src = state.previewUrl;
+        $('fileName').textContent = `${file.name} · ${(file.size / 1024).toFixed(0)} КБ`;
+        $('scanBtn').disabled = false;
+      });
+
+      $('scanBtn').addEventListener('click', async () => {
+        if (!state.file) return;
+        const studentId = $('studentId').value.trim() || 'student-001';
+        $('scanBtn').disabled = true;
+        showBusy('scanStatus', 'scanStatusText', 'Vision распознаёт условие и решение. Не закрывай вкладку');
+        try {
+          const fd = new FormData();
+          fd.append('image', state.file);
+          fd.append('student_id', studentId);
+          fd.append('task_type', 'ege_13');
+          const res = await fetch('/api/reviews/photo', { method: 'POST', body: fd });
+          const data = await parseResponse(res);
+          state.ocr = data;
+          $('ocrJson').textContent = prettyJson(data);
+
+          if ((data.errors || []).length && !(data.transcript || '').trim()) {
+            throw new Error(data.errors[0] || 'Vision не смог получить текст из изображения.');
+          }
+
+          const draft = (data.display_transcript || data.transcript || data.original_transcript || '').trim();
+          const taskDraft = (data.display_task_statement || data.detected_task_statement || data.original_task_statement || '').trim();
+          $('taskOcrText').value = taskDraft;
+          $('ocrText').value = draft;
+          $('uncertainWrap').replaceChildren();
+          (data.task_uncertain_fragments || []).forEach((item) => {
+            const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = `Условие — проверь: ${item}`; $('uncertainWrap').appendChild(chip);
+          });
+          (data.uncertain_fragments || []).forEach((item) => {
+            const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = `Решение — проверь: ${item}`; $('uncertainWrap').appendChild(chip);
+          });
+          $('confirmCard').classList.remove('hidden');
+          setProgress(2);
+          $('confirmCard').scrollIntoView({behavior: 'smooth', block: 'start'});
+        } catch (err) {
+          toast(`Ошибка: ${err.message}`);
+        } finally {
+          hideBusy('scanStatus');
+          $('scanBtn').disabled = false;
+        }
+      });
+
+      $('restoreOcrBtn').addEventListener('click', () => {
+        if (!state.ocr) return;
+        $('taskOcrText').value = state.ocr.display_task_statement || state.ocr.detected_task_statement || state.ocr.original_task_statement || '';
+        $('ocrText').value = state.ocr.display_transcript || state.ocr.transcript || state.ocr.original_transcript || '';
+        toast('Черновики условия и решения восстановлены.');
+      });
+
+      $('confirmBtn').addEventListener('click', async () => {
+        if (!state.ocr) return toast('Сначала распознай фото.');
+        const confirmedTask = $('taskOcrText').value.trim();
+        const confirmed = $('ocrText').value.trim();
+        if (!confirmedTask) return toast('Проверь или введи условие задания.');
+        if (!confirmed) return toast('Подтверждённое решение не может быть пустым.');
+
+        $('confirmBtn').disabled = true;
+        showBusy('gradeStatus', 'gradeStatusText', 'Идёт проверка Solver → verifier → Grader → Reviewer');
+        try {
+          const payload = {
+            review_id: state.ocr.review_id,
+            student_id: $('studentId').value.trim() || state.ocr.student_id || 'student-001',
+            task_type: 'ege_13',
+            task_statement: confirmedTask,
+            original_task_statement: state.ocr.original_task_statement || state.ocr.detected_task_statement || '',
+            confirmed_task_statement: confirmedTask,
+            original_transcript: state.ocr.original_transcript || state.ocr.transcript || '',
+            confirmed_transcript: confirmed
+          };
+          const res = await fetch('/api/reviews/confirm-transcript', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+          });
+          const data = await parseResponse(res);
+          state.final = data;
+          $('finalJson').textContent = prettyJson(data);
+          try { localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(data)); } catch (_) {}
+          renderResult(data);
+          setProgress(3);
+          $('resultCard').classList.remove('hidden');
+          $('resultCard').scrollIntoView({behavior: 'smooth', block: 'start'});
+        } catch (err) {
+          toast(`Ошибка проверки: ${err.message}`);
+        } finally {
+          hideBusy('gradeStatus');
+          $('confirmBtn').disabled = false;
+        }
+      });
+
+      function renderResult(data) {
+        const report = data.report || {};
+        const max = data.max_score ?? report.max_score ?? 2;
+        const score = data.final_score ?? report.score;
+        $('scoreText').textContent = score == null ? '—' : `${score}/${max}`;
+        $('scoreStatus').textContent = data.status || 'Результат';
+        $('resultTitle').textContent = report.title || data.task_title || 'ЕГЭ №13';
+        $('expertComment').textContent = report.expert_comment || data.feedback || 'Проверка завершена.';
+        $('partAComment').textContent = report.part_a_comment ? `а) ${report.part_a_comment}` : '';
+        $('partBComment').textContent = report.part_b_comment ? `б) ${report.part_b_comment}` : '';
+        const answers = [];
+        if (report.correct_answer_part_a) answers.push(`Правильный ответ а): ${report.correct_answer_part_a}`);
+        if (report.correct_answer_part_b) answers.push(`Правильный ответ б): ${report.correct_answer_part_b}`);
+        $('correctAnswer').textContent = answers.join('\n');
+
+        const steps = $('steps'); steps.replaceChildren();
+        (report.step_checks || data.grader_step_assessments || []).forEach((item, index) => {
+          const status = String(item.status || 'uncertain').toLowerCase();
+          const card = document.createElement('div'); card.className = `step ${status}`;
+          const badge = document.createElement('div'); badge.className = 'step-badge';
+          badge.textContent = status === 'correct' ? '✓' : status === 'incorrect' ? '×' : '?';
+          const body = document.createElement('div');
+          const text = document.createElement('div'); text.className = 'step-text'; text.textContent = item.text || item.step_id || `Шаг ${index+1}`;
+          const comment = document.createElement('div'); comment.className = 'step-comment'; comment.textContent = item.comment || '';
+          body.append(text, comment); card.append(badge, body); steps.appendChild(card);
+        });
+
+        const circleUrl = data.report_circle_url || report.correct_trig_circle_url;
+        if (circleUrl) {
+          $('circleImg').src = circleUrl + (circleUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+          $('circleBox').classList.add('show');
+        } else {
+          $('circleBox').classList.remove('show');
+          $('circleImg').removeAttribute('src');
+        }
+      }
+
+      async function copyText(text, label) {
+        if (!text || text === '—') return toast('Пока нечего копировать.');
+        try { await navigator.clipboard.writeText(text); toast(label); }
+        catch (_) { toast('Не удалось скопировать автоматически.'); }
+      }
+      $('copyOcrBtn').addEventListener('click', () => copyText($('ocrJson').textContent, 'OCR JSON скопирован.'));
+      $('copyFinalBtn').addEventListener('click', () => copyText($('finalJson').textContent, 'Итоговый JSON скопирован.'));
+      $('resetBtn').addEventListener('click', resetAll);
+      $('newBtn').addEventListener('click', resetAll);
+
+      // Keep the previous final JSON visible in the technical block after an accidental refresh.
+      try {
+        const last = JSON.parse(localStorage.getItem(LAST_RESULT_KEY) || 'null');
+        if (last && typeof last === 'object') {
+          state.final = last;
+          $('finalJson').textContent = prettyJson(last);
+        }
+      } catch (_) {}
+    })();
+  </script>
+</body>
+</html>
