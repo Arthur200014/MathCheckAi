@@ -10,7 +10,7 @@ from src.agents.solver import solver_agent
 from src.agents.vision import vision_agent
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
-from src.tools.ege13_report import build_compact_report_node
+from src.tools.ege13_report_v2 import build_compact_report_node
 
 
 def route_after_vision(state: ReviewState) -> str:
