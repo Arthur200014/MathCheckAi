@@ -10,7 +10,7 @@ from src.agents.solver import solver_agent
 from src.agents.vision import vision_agent
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
-from src.tools.ege13_report_v3 import build_compact_report_node
+from src.tools.ege13_user_report import build_user_report_node
 
 
 def route_after_vision(state: ReviewState) -> str:
@@ -50,7 +50,7 @@ def _wire_tail(graph: StateGraph) -> None:
     graph.add_node("verify_reference", reference_verifier_agent)
     graph.add_node("grader", grader_agent)
     graph.add_node("reviewer", reviewer_agent)
-    graph.add_node("build_report", build_compact_report_node)
+    graph.add_node("build_report", build_user_report_node)
     graph.add_node("persist_review", persist_review_node)
 
     graph.add_conditional_edges(
