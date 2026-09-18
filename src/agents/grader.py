@@ -8,10 +8,10 @@ from src.llm.config import get_grader_model
 from src.llm.ollama_client import OllamaError, ollama_chat_json
 from src.state import ReviewState
 from src.tools.core import compact_criteria_summary, load_criteria, load_runtime_rubric
+from src.tools.ege13_reasoning import deterministic_reasoning_overrides_ege13
 from src.tools.ege13_report import extract_solution_steps, normalize_step_assessments
 from src.tools.ege13_rubric import apply_ege13_rubric, resolve_confirmed_ege13_score
 from src.tools.ege13_student import (
-    deterministic_step_overrides_ege13,
     extract_ege13_explicit_final_answer,
     extract_ege13_student_evidence,
     verify_ege13_student_machine_spec,
@@ -262,7 +262,7 @@ def grader_agent(state: ReviewState) -> dict:
         reference_families=list(state.get("reference_verified_families", [])),
         expected_roots=list(state.get("reference_expected_roots", [])),
     )
-    deterministic_step_overrides = deterministic_step_overrides_ege13(
+    deterministic_step_overrides = deterministic_reasoning_overrides_ege13(
         student_steps,
         task_statement=str(state.get("task_statement", "")),
         expected_roots=list(state.get("reference_expected_roots", [])),
