@@ -4,7 +4,8 @@ import re
 
 
 def _normalized_lines(text: str) -> list[str]:
-    raw = str(text or "").replace("\\n", "\n").replace("\\newline", "\n")
+    # Order matters: `\\newline` starts with `\\n`, so expand it first.
+    raw = str(text or "").replace("\\newline", "\n").replace("\\n", "\n")
     return [line.strip() for line in raw.splitlines() if line.strip()]
 
 
