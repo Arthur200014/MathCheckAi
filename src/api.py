@@ -25,14 +25,19 @@ from src.task_registry import list_task_profiles
 from src.tools.core import load_student_history
 from src.tools.ege13_report import report_circle_path
 from src.tools.display_math import latex_to_human_text
+from src.tools.ege13_task_input import (
+    infer_task_statement_draft,
+    task_statement_issue_message,
+    validate_confirmed_task_statement,
+)
 
 app = FastAPI(
     title="MathCheck AI",
-    version="0.4.12-stage2.9.7.8-ege13-human-readable-editor",
+    version="0.4.13-stage2.9.7.9-ege13-task-preflight",
     description=(
-        "Stage 2.9.7.8: one photo -> Vision extracts task statement + student work -> human edits readable math -> confirms both -> grading. "
+        "One photo -> Vision extracts task statement + student work -> human edits readable math -> confirms both -> grading. "
         "Vision output is only a draft; confirmed task_statement and confirmed_transcript are the sole grading inputs. "
-        "Solver/Grader/Reviewer never run on unconfirmed photo OCR."
+        "EGE-13 task completeness is validated before Solver/Grader/Reviewer can run."
     ),
 )
 
@@ -109,7 +114,7 @@ def web_ui():
 def health():
     return {
         "status": "ok",
-        "stage": "2.9.7.8-ege13-human-readable-editor",
+        "stage": "2.9.7.9-ege13-task-preflight",
         "ollama_transport": "ndjson-stream-idle-timeout-emergency-ceiling",
         "ollama_connect_timeout_seconds": int(os.getenv("OLLAMA_CONNECT_TIMEOUT_SECONDS", "15")),
         "ollama_idle_timeout_seconds": int(os.getenv("OLLAMA_IDLE_TIMEOUT_SECONDS", "180")),
@@ -135,6 +140,8 @@ def health():
         "raw_latex_hidden_in_technical_json": True,
         "photo_human_confirmation_required": True,
         "task_statement_human_confirmation_required": True,
+        "task_statement_preflight_required": True,
+        "task_statement_fallback_from_visible_leading_equation": True,
         "ocr_confidence_can_auto_accept": False,
         "grading_source": "confirmed_task_statement+confirmed_transcript",
         "review_advisory_blocks_score": False,
@@ -219,14 +226,38 @@ async def create_review_from_photo(
     result = review_graph.invoke(initial_state)
     result.pop("image_b64", None)
 
-    # Vision now extracts both the visible task statement and the student's work
-    # from this same image. Neither is authoritative until the human confirms both.
-    result.setdefault("detected_task_statement", str(result.get("original_task_statement", "") or ""))
-    result.setdefault("original_task_statement", str(result.get("detected_task_statement", "") or ""))
+    # Vision should extract both task and solution. If it leaves the task empty
+    # but the first visible student line is literally the task equation, reuse
+    # only that visible line as an editable draft. Never invent part b/interval.
+    detected_statement = str(result.get("detected_task_statement", "") or "").strip()
+    draft_statement, draft_source = infer_task_statement_draft(
+        detected_statement,
+        str(result.get("transcript", "") or ""),
+    )
+    if draft_statement and not detected_statement:
+        result["detected_task_statement"] = draft_statement
+        result["original_task_statement"] = draft_statement
+        result["task_statement_draft_source"] = draft_source
+    else:
+        result.setdefault("detected_task_statement", str(result.get("original_task_statement", "") or ""))
+        result.setdefault("original_task_statement", str(result.get("detected_task_statement", "") or ""))
+        result["task_statement_draft_source"] = draft_source
+
+    task_issues = validate_confirmed_task_statement(
+        task_type,
+        str(result.get("detected_task_statement", "") or ""),
+    )
+    result["task_statement_preflight_issues"] = task_issues
+    if task_issues:
+        human_hint = task_statement_issue_message(task_issues)
+        existing = list(result.get("task_uncertain_fragments", []) or [])
+        hint = f"Перед проверкой дополни условие: {human_hint}."
+        if hint not in existing:
+            existing.append(hint)
+        result["task_uncertain_fragments"] = existing[:6]
+
     result["confirmed_task_statement"] = ""
     result["task_statement_confirmation_source"] = "pending_human"
-    # UI fields: the human confirms ordinary readable math, not raw LaTeX syntax.
-    # Raw OCR remains untouched in original_* / transcript for diagnostics.
     result["display_task_statement"] = latex_to_human_text(
         str(result.get("detected_task_statement", "") or "")
     )
@@ -245,8 +276,6 @@ async def create_review_from_photo(
         result["transcript_confirmation_source"] = "pending_human"
 
     if result.get("needs_confirmation", False):
-        # Save OCR state for human confirmation. Solver has not run yet in the
-        # local-optimized sequential flow, so no compute is wasted after a bad OCR.
         save_pending_state(initial_state["review_id"], result)
     else:
         delete_pending(initial_state["review_id"])
@@ -259,11 +288,24 @@ def confirm_transcript(payload: TranscriptConfirmationRequest):
     if not confirmed:
         raise HTTPException(status_code=400, detail="confirmed_transcript не может быть пустым.")
 
-    # New UI sends `confirmed_task_statement`; old API clients may still send
-    # only `task_statement`, so keep that as an explicit backward-compatible fallback.
     confirmed_statement = (payload.confirmed_task_statement or payload.task_statement).strip()
     if not confirmed_statement:
         raise HTTPException(status_code=400, detail="Подтверждённое условие задания не может быть пустым.")
+
+    # Hard preflight before any expensive LLM call. Human confirmation is the
+    # source of truth, but for EGE-13 it must include both the equation and the
+    # part-b interval. We never let Solver guess missing task data.
+    task_issues = validate_confirmed_task_statement(payload.task_type, confirmed_statement)
+    if task_issues:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Условие №13 подтверждено не полностью: "
+                + task_statement_issue_message(task_issues)
+                + ". Исправь поле «Условие задания» и нажми подтверждение ещё раз. "
+                "Solver ещё не запускался."
+            ),
+        )
 
     # Image is not needed after OCR confirmation because Diagram Vision is not
     # in the fast four-agent runtime flow. Keep loading it only for compatibility.
@@ -281,8 +323,6 @@ def confirm_transcript(payload: TranscriptConfirmationRequest):
         or str(pending.get("transcript", "") or "").strip()
     )
 
-    # Pending state goes first. Human-confirmed task + solution MUST win over
-    # every OCR draft. Solver/verifier/Grader/Reviewer see only these values.
     state = {
         **pending,
         "review_id": payload.review_id,
