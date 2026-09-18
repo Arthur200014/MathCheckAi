@@ -8,6 +8,7 @@ from typing import Any
 import sympy as sp
 
 from src.state import ReviewState
+from src.tools.display_math import latex_to_human_text
 from src.tools.ege13_reference import _extract_part_b_interval, _equal, _sympify
 from src.tools.solution_steps import split_solution_step_texts
 
@@ -59,23 +60,20 @@ def normalize_step_assessments(
         elif sid in by_id:
             verdict = by_id[sid]
         elif sparse_issues and checked_step_ids is None:
-            # Backward-compatible mode used by old tests/callers.
             verdict = {"status": "correct", "comment": "Ошибок в этом шаге не обнаружено."}
         elif sid in checked:
             verdict = {"status": "correct", "comment": "Шаг проверен Grader; ошибок не обнаружено."}
         else:
-            # Absence from a compact LLM response is NOT proof of correctness.
-            # This prevents false-green rows when the model silently skipped a step.
             verdict = {"status": "uncertain", "comment": "Шаг не получил отдельного подтверждения."}
-        row = {
-            "step_id": sid,
-            "text": step["text"],
-            "status": str(verdict.get("status", "uncertain")),
-            "comment": str(verdict.get("comment", "")),
-        }
-        result.append(row)
+        result.append(
+            {
+                "step_id": sid,
+                "text": step["text"],
+                "status": str(verdict.get("status", "uncertain")),
+                "comment": str(verdict.get("comment", "")),
+            }
+        )
 
-    # Deterministic evidence outranks a friendly LLM verdict on the final answer.
     if explicit_final_answer_mismatch:
         candidates = [r for r in result if re.search(r"ответ\s*:|\bб\)|\bb\)", r["text"], re.IGNORECASE)]
         if candidates:
@@ -88,13 +86,27 @@ def normalize_step_assessments(
         if candidates:
             row = candidates[-1]
             row["status"] = "incorrect"
-            row["comment"] = "По рисунку подтверждена содержательная ошибка отбора корней."
+            row["comment"] = "По рисунку подтверждена ошибка отбора корней."
 
     return result
 
 
 def _latex(expr: sp.Expr) -> str:
     return "$" + sp.latex(sp.simplify(expr)) + "$"
+
+
+def _human_math(value: str) -> str:
+    """Presentation-only conversion: no raw LaTeX in the student-facing report."""
+    text = latex_to_human_text(str(value or "")).replace("$", "")
+    lines: list[str] = []
+    for raw in text.splitlines() or [text]:
+        line = re.sub(r"\s+", " ", raw).strip()
+        line = re.sub(r"π\s+\(", "π(", line)
+        line = re.sub(r"(?<=\d)\s+(?=[nkm]\b)", "", line)
+        line = line.replace(" ;", ";").replace(" ,", ",")
+        if line:
+            lines.append(line)
+    return "\n".join(lines).strip()
 
 
 def _dedupe_expr(values: list[sp.Expr]) -> list[sp.Expr]:
@@ -105,13 +117,140 @@ def _dedupe_expr(values: list[sp.Expr]) -> list[sp.Expr]:
     return out
 
 
+def _format_reference_part_a(state: ReviewState) -> str:
+    rows: list[str] = []
+    families = state.get("reference_verified_families", [])
+    if isinstance(families, list):
+        for item in families:
+            if not isinstance(item, dict):
+                continue
+            expression = str(item.get("expression", "")).strip()
+            parameter = str(item.get("parameter", "n")).strip() or "n"
+            if not expression:
+                continue
+            try:
+                symbol = sp.Symbol(parameter, integer=True)
+                expr = _sympify(expression, extra={parameter: symbol})
+                display = _human_math(sp.latex(sp.simplify(expr)))
+            except Exception:
+                display = _human_math(expression)
+            row = f"x = {display}, {parameter} ∈ ℤ"
+            if row not in rows:
+                rows.append(row)
+    if rows:
+        return "\n".join(rows)
+    return _human_math(str(state.get("reference_answer_part_a_verified", "")))
+
+
+def _format_reference_part_b(state: ReviewState) -> str:
+    roots: list[str] = []
+    for raw in list(state.get("reference_expected_roots", []) or []):
+        try:
+            roots.append(_human_math(sp.latex(sp.simplify(_sympify(str(raw))))))
+        except Exception:
+            roots.append(_human_math(str(raw)))
+    if roots:
+        return "; ".join(roots)
+    return _human_math(str(state.get("reference_answer_part_b_verified", "")))
+
+
+def _display_step_checks(raw_steps: list[dict[str, Any]]) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    for row in raw_steps:
+        if not isinstance(row, dict):
+            continue
+        out.append(
+            {
+                "step_id": str(row.get("step_id", "")),
+                "text": _human_math(str(row.get("text", ""))),
+                "status": str(row.get("status", "uncertain")),
+                "comment": _human_math(str(row.get("comment", ""))),
+            }
+        )
+    return out
+
+
+def _first_incorrect_comment(step_checks: list[dict[str, str]]) -> str:
+    for row in step_checks:
+        if str(row.get("status", "")).lower() != "incorrect":
+            continue
+        comment = str(row.get("comment", "")).strip()
+        if not comment:
+            continue
+        # Keep the summary short; the full comment is still visible on the step.
+        comment = re.sub(r"\s+", " ", comment)
+        if len(comment) > 150:
+            comment = comment[:147].rstrip() + "…"
+        return comment
+    return ""
+
+
+def _part_b_present(state: ReviewState) -> bool:
+    evidence = state.get("grader_student_evidence", {})
+    if isinstance(evidence, dict) and "part_b_present" in evidence:
+        return bool(evidence.get("part_b_present"))
+    return str(state.get("reviewer_part_b_status") or state.get("grader_part_b_status") or "") != "missing"
+
+
+def _friendly_part_a(state: ReviewState, step_checks: list[dict[str, str]]) -> str:
+    status = str(state.get("reviewer_part_a_status") or state.get("grader_part_a_status") or "").strip()
+    if state.get("reviewer_part_a_equivalent") is True or status == "correct":
+        return "Верно."
+    if status == "missing":
+        return "Пункт а не выполнен."
+    if status == "computation_error_only" or str(state.get("reviewer_error_class") or state.get("grader_error_class")) == "computation_error":
+        return "Вычислительная ошибка: ход решения в целом верный."
+
+    specific = _first_incorrect_comment(step_checks)
+    math_errors = " ".join(str(x) for x in state.get("grader_student_math_errors", []) or []).lower()
+    if "family" in math_errors or "period" in math_errors or "solution" in math_errors:
+        return "Ошибка в общем решении." + (f" {specific}" if specific else "")
+    if specific:
+        return specific
+    if status == "substantive_error" or state.get("reviewer_part_a_equivalent") is False:
+        return "Неверное преобразование или общее решение."
+    return "Нужно проверить пункт а вручную."
+
+
+def _friendly_part_b(state: ReviewState, *, present: bool) -> str:
+    if not present:
+        return "Пункт б не выполнялся."
+    status = str(state.get("reviewer_part_b_status") or state.get("grader_part_b_status") or "").strip()
+    if state.get("reviewer_part_b_roots_match") is True or status == "correct":
+        return "Верно."
+    if status == "missing":
+        return "Пункт б не выполнялся."
+    if status == "incorrect" or state.get("reviewer_part_b_roots_match") is False:
+        return "Ошибка в отборе корней."
+    return "Нужно проверить пункт б вручную."
+
+
+def _friendly_summary(*, score: int, max_score: int, part_a: str, part_b: str, part_b_present: bool) -> str:
+    if score == max_score:
+        return "Решение верное."
+    if part_a.startswith("Вычислительная ошибка"):
+        return "Вычислительная ошибка."
+    if part_a != "Верно.":
+        # The detailed reason is displayed immediately below in the part-a row.
+        if part_a.startswith("Ошибка в общем решении"):
+            return "Ошибка в общем решении."
+        if part_a.startswith("Неверное преобразование"):
+            return "Неверное преобразование."
+        return "Ошибка в пункте а."
+    if not part_b_present:
+        return "Пункт б не выполнен."
+    if part_b != "Верно.":
+        return "Ошибка в отборе корней."
+    return "Проверка завершена."
+
+
 def render_verified_trig_circle(
     *,
     review_id: str,
     task_statement: str,
     expected_roots: list[str],
 ) -> Path:
-    """Render a clean reference trig circle from verified math, not OCR geometry."""
+    """Render the verified roots and the correct part-b interval in the UI palette."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -126,26 +265,45 @@ def render_verified_trig_circle(
     span = max(0.0, right_f - left_f)
     start = left_f % (2 * math.pi)
 
-    fig, ax = plt.subplots(figsize=(5.2, 5.2), dpi=160)
+    bg = "#0F172A"
+    panel = "#111827"
+    axis = "#64748B"
+    muted = "#94A3B8"
+    text = "#F8FAFC"
+    accent = "#F59E0B"
+    good = "#34D399"
+
+    fig, ax = plt.subplots(figsize=(5.0, 5.0), dpi=170)
+    fig.patch.set_facecolor(bg)
+    ax.set_facecolor(panel)
     ax.set_aspect("equal")
 
-    # base circle and axes
-    circle = plt.Circle((0, 0), 1.0, fill=False, linewidth=1.3, alpha=0.55)
+    circle = plt.Circle((0, 0), 1.0, fill=False, linewidth=1.6, edgecolor=axis, alpha=0.95)
     ax.add_patch(circle)
-    ax.axhline(0, linewidth=0.9, alpha=0.75)
-    ax.axvline(0, linewidth=0.9, alpha=0.75)
-    ax.text(1.16, -0.07, "x", fontsize=10)
-    ax.text(0.05, 1.17, "y", fontsize=10)
+    ax.axhline(0, linewidth=0.9, color=axis, alpha=0.75)
+    ax.axvline(0, linewidth=0.9, color=axis, alpha=0.75)
+    ax.text(1.15, -0.07, "x", fontsize=10, color=muted)
+    ax.text(0.05, 1.15, "y", fontsize=10, color=muted)
 
-    # Increasing x on the trig circle means counter-clockwise. For intervals
-    # longer than one revolution the full circle is the only honest compact view.
+    # Highlight the actual interval of part b with the same amber accent as the UI.
     if span >= 2 * math.pi - 1e-9:
         arc_start_deg, arc_end_deg = 0.0, 360.0
     else:
         arc_start_deg = math.degrees(start)
         arc_end_deg = math.degrees(start + span)
-    arc = Arc((0, 0), 2, 2, theta1=arc_start_deg, theta2=arc_end_deg, linewidth=4.0, alpha=0.9)
-    ax.add_patch(arc)
+    ax.add_patch(
+        Arc(
+            (0, 0),
+            2,
+            2,
+            theta1=arc_start_deg,
+            theta2=arc_end_deg,
+            linewidth=7.0,
+            color=accent,
+            alpha=0.92,
+            zorder=3,
+        )
+    )
     if 0.12 < span < 2 * math.pi - 1e-9:
         arrow_to = start + span * 0.82
         arrow_from = arrow_to - min(0.16, span * 0.12)
@@ -153,45 +311,65 @@ def render_verified_trig_circle(
             "",
             xy=(math.cos(arrow_to), math.sin(arrow_to)),
             xytext=(math.cos(arrow_from), math.sin(arrow_from)),
-            arrowprops={"arrowstyle": "->", "linewidth": 2.0},
+            arrowprops={"arrowstyle": "->", "linewidth": 2.0, "color": accent},
             zorder=7,
         )
 
     def point(expr: sp.Expr) -> tuple[float, float]:
         return float(sp.N(sp.cos(expr), 20)), float(sp.N(sp.sin(expr), 20))
 
-    # Interval endpoints that are not themselves selected roots. If a root is
-    # also a boundary (common in EGE-13), draw/label it only once below.
-    non_root_boundaries = [
-        expr for expr in [left, right]
-        if not any(_equal(expr, root) for root in roots)
-    ]
+    non_root_boundaries = [expr for expr in [left, right] if not any(_equal(expr, root) for root in roots)]
     if non_root_boundaries:
         coords = [point(expr) for expr in non_root_boundaries]
-        ax.scatter([x for x, _ in coords], [y for _, y in coords], s=42, marker="s", zorder=5)
+        ax.scatter(
+            [x for x, _ in coords],
+            [y for _, y in coords],
+            s=48,
+            marker="s",
+            color=accent,
+            edgecolors=bg,
+            linewidths=1.0,
+            zorder=5,
+        )
         for expr, (x, y) in zip(non_root_boundaries, coords):
-            scale = 1.18
-            ax.text(scale * x, scale * y, _latex(expr), ha="center", va="center", fontsize=10)
+            ax.text(1.19 * x, 1.19 * y, _latex(expr), ha="center", va="center", fontsize=10, color=text)
 
-    # Verified roots, including roots that coincide with interval boundaries.
     if roots:
         coords = [point(expr) for expr in roots]
-        ax.scatter([x for x, _ in coords], [y for _, y in coords], s=55, zorder=6)
+        ax.scatter(
+            [x for x, _ in coords],
+            [y for _, y in coords],
+            s=66,
+            color=good,
+            edgecolors=bg,
+            linewidths=1.2,
+            zorder=6,
+        )
         for expr, (x, y) in zip(roots, coords):
-            scale = 1.30
-            ax.text(scale * x, scale * y, _latex(expr), ha="center", va="center", fontsize=10)
+            ax.text(1.31 * x, 1.31 * y, _latex(expr), ha="center", va="center", fontsize=10, color=text)
 
+    interval_label = f"[{_human_math(sp.latex(left))}; {_human_math(sp.latex(right))}]"
     ax.set_xlim(-1.55, 1.55)
     ax.set_ylim(-1.55, 1.55)
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.set_title("Правильный отбор корней", fontsize=12)
+    ax.set_title("Правильный отбор корней", fontsize=12, color=text, pad=10, fontweight="bold")
+    ax.text(
+        0.5,
+        0.02,
+        f"Интервал: {interval_label}",
+        transform=ax.transAxes,
+        ha="center",
+        va="bottom",
+        fontsize=9.5,
+        color=accent,
+    )
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     path = REPORT_DIR / f"{review_id}-trig-circle.png"
-    fig.savefig(path, bbox_inches="tight", pad_inches=0.15)
+    fig.savefig(path, bbox_inches="tight", pad_inches=0.12, facecolor=fig.get_facecolor())
     plt.close(fig)
     return path
 
@@ -201,40 +379,25 @@ def report_circle_path(review_id: str) -> Path:
     return REPORT_DIR / f"{safe}-trig-circle.png"
 
 
-def _human_error_reason(error_class: str) -> str:
-    return {
-        "root_selection_error": "В пункте б допущена ошибка в итоговом отборе корней.",
-        "diagram_selection_error": "На окружности подтверждена содержательная ошибка отбора корней.",
-        "computation_error": "Есть локальная вычислительная ошибка при в целом правильной схеме решения.",
-        "substantive_math_error": "Обнаружена содержательная математическая ошибка в пункте а.",
-        "ambiguous": "Часть решения не удалось однозначно проверить автоматически.",
-        "none": "Содержательных ошибок не обнаружено.",
-    }.get(str(error_class), "Проверка завершена по экспертным критериям.")
-
-
 def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
-    """Build user-facing report without adding another LLM/agent."""
+    """Build a concise Russian student-facing report without another LLM call."""
     if state.get("status") != "REVIEWED":
         return {}
 
     final_score = int(state.get("final_score", 0))
     max_score = int(state.get("max_score", state.get("task_max_score", 2)))
-    error_class = str(state.get("reviewer_error_class") or state.get("grader_error_class") or "none")
 
-    step_checks = list(state.get("grader_step_assessments", []))
-    a_ok = state.get("reviewer_part_a_equivalent") is True
-    b_ok = state.get("reviewer_part_b_roots_match") is True and not state.get("reviewer_diagram_override_applied", False)
-
-    if final_score == max_score:
-        expert_comment = "Решение соответствует критериям: существенных математических ошибок не обнаружено."
-    else:
-        expert_comment = _human_error_reason(error_class)
-
-    part_a_comment = "Пункт а засчитан." if a_ok else "Пункт а не подтверждён как полностью верный."
-    if b_ok:
-        part_b_comment = "Пункт б засчитан: итоговый набор корней совпадает с проверенным эталоном."
-    else:
-        part_b_comment = _human_error_reason(error_class)
+    step_checks = _display_step_checks(list(state.get("grader_step_assessments", [])))
+    part_b_present = _part_b_present(state)
+    part_a_comment = _friendly_part_a(state, step_checks)
+    part_b_comment = _friendly_part_b(state, present=part_b_present)
+    expert_comment = _friendly_summary(
+        score=final_score,
+        max_score=max_score,
+        part_a=part_a_comment,
+        part_b=part_b_comment,
+        part_b_present=part_b_present,
+    )
 
     circle_url = ""
     circle_error = ""
@@ -246,28 +409,25 @@ def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
                 expected_roots=list(state.get("reference_expected_roots", [])),
             )
             circle_url = f"/api/reviews/{state.get('review_id')}/report-circle"
-        except Exception as exc:  # report rendering must never invalidate grading
+        except Exception as exc:
             circle_error = str(exc)
-
-    diagram_status = "NOT_ANALYZED_MVP"
-    student_diagram_comment = (
-        "В быстром MVP рукописная окружность не проходит отдельный Vision-pass. "
-        "Оценка опирается на подтверждённый текст и математические проверки; ниже строится правильная эталонная окружность."
-    )
 
     report = {
         "title": str(state.get("task_title", "Проверка решения")),
         "score": final_score,
         "max_score": max_score,
         "score_text": f"{final_score}/{max_score}",
+        "score_label": "Итоговый балл",
+        "status_label": "Проверка завершена",
         "step_checks": step_checks,
         "part_a_comment": part_a_comment,
         "part_b_comment": part_b_comment,
+        "part_b_present": part_b_present,
         "expert_comment": expert_comment,
-        "correct_answer_part_a": str(state.get("reference_answer_part_a_verified", "")),
-        "correct_answer_part_b": str(state.get("reference_answer_part_b_verified", "")),
-        "student_diagram_status": diagram_status,
-        "student_diagram_comment": student_diagram_comment,
+        "correct_answer_part_a": _format_reference_part_a(state),
+        "correct_answer_part_b": _format_reference_part_b(state),
+        "student_diagram_status": "NOT_ANALYZED_MVP",
+        "student_diagram_comment": "Окружность ученика отдельно не распознаётся; справа показан правильный отбор по подтверждённому условию.",
         "correct_trig_circle_url": circle_url,
         "correct_trig_circle_source": "verified_reference" if circle_url else "",
         "agent_timings_seconds": {
@@ -278,6 +438,6 @@ def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
         },
     }
     if circle_error:
-        report["render_warning"] = f"Не удалось построить окружность для отчёта: {circle_error}"
+        report["render_warning"] = f"Не удалось построить окружность: {circle_error}"
 
     return {"report": report, "report_circle_url": circle_url}
