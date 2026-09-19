@@ -168,14 +168,14 @@ function toLatex(text){
   s=s.replace(/²/g,'^2').replace(/³/g,'^3').replace(/\*\*/g,'^').replace(/∈\s*ℤ/g,' INTEGERS ').replace(/\bin\s*Z\b/gi,' INTEGERS ');
   s=s.replace(/√\s*\(([^()]+)\)/g,'SQRT{$1}').replace(/√\s*([A-Za-z0-9]+)/g,'SQRT{$1}');
   s=s.replace(/π/g,'PI');
-  const token='(?:-?(?:\\d*PI|SQRT\\{[^{}]+\\}|\\d+|[A-Za-z]+(?:\\^\\{?\\d+\\}?)))';
+  const token='(?:(?:\\d*PI|SQRT\\{[^{}]+\\}|\\d+|[A-Za-z]+(?:\\^\\{?\\d+\\}?)))';
   const fracRe=new RegExp('('+token+')\\s*\\/\\s*('+token+')','g');
   s=s.replace(fracRe,'\\frac{$1}{$2}');
   s=s.replace(/PI/g,'\\pi ').replace(/SQRT\{([^{}]+)\}/g,'\\sqrt{$1}');
   s=s.replace(/INTEGERS/g,'\\in \\mathbb{Z}').replace(/<=/g,'\\le ').replace(/>=/g,'\\ge ').replace(/!=/g,'\\ne ');
   s=s.replace(/\s*\*\s*/g,' \\cdot ').replace(/[·×]/g,'\\cdot ');
-  s=s.replace(/(^|[^\\])\b(sin|cos|tan)\b/gi,(_,p,fn)=>p+'\\'+fn.toLowerCase());
-  s=s.replace(/(^|[^\\])\btg\b/gi,(_,p)=>p+'\\tan').replace(/(^|[^\\])\bctg\b/gi,(_,p)=>p+'\\cot');
+  s=s.replace(/(^|[^\\A-Za-z])(sin|cos|tan)(?=\s|\()/gi,(_,p,fn)=>p+'\\'+fn.toLowerCase());
+  s=s.replace(/(^|[^\\A-Za-z])(tg)(?=\s|\()/gi,(_,p)=>p+'\\tan').replace(/(^|[^\\A-Za-z])(ctg)(?=\s|\()/gi,(_,p)=>p+'\\cot');
   s=s.replace(/∈/g,'\\in ').replace(/ℤ/g,'\\mathbb{Z}').replace(/±/g,'\\pm ').replace(/≤/g,'\\le ').replace(/≥/g,'\\ge ').replace(/≠/g,'\\ne ');
   return s.replace(/\s{2,}/g,' ').trim();
 }
