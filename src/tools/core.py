@@ -126,6 +126,28 @@ def save_review(review: dict[str, Any]) -> str:
     return str(DB_PATH)
 
 
+def load_review(review_id: str) -> dict[str, Any] | None:
+    """Load one saved review by id, including the persisted safe payload."""
+    rid = str(review_id or "").strip()
+    if not rid or not DB_PATH.exists():
+        return None
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT payload_json, created_at FROM reviews WHERE review_id=?",
+            (rid,),
+        ).fetchone()
+    if row is None:
+        return None
+    try:
+        payload = json.loads(str(row["payload_json"]))
+    except (TypeError, json.JSONDecodeError):
+        payload = {"review_id": rid, "status": "CORRUPT_SAVED_PAYLOAD"}
+    if isinstance(payload, dict):
+        payload.setdefault("created_at", row["created_at"])
+        return payload
+    return {"review_id": rid, "created_at": row["created_at"], "payload": payload}
+
+
 def load_student_history(student_id: str, *, limit: int = 10) -> list[dict[str, Any]]:
     if not DB_PATH.exists():
         return []
@@ -138,6 +160,75 @@ def load_student_history(student_id: str, *, limit: int = 10) -> list[dict[str, 
             (student_id, max(1, min(int(limit), 50))),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def metrics_summary(*, limit: int = 200) -> dict[str, Any]:
+    """Small local metrics snapshot from persisted reviews for demo/defense."""
+    if not DB_PATH.exists():
+        return {
+            "reviews": 0,
+            "success_rate": None,
+            "error_rate": None,
+            "manual_review_rate": None,
+            "average_final_score": None,
+            "average_agent_seconds": {},
+            "status_counts": {},
+        }
+
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT final_score, status, payload_json
+            FROM reviews ORDER BY created_at DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 1000)),),
+        ).fetchall()
+
+    status_counts: dict[str, int] = {}
+    scores: list[float] = []
+    manual_count = 0
+    error_count = 0
+    agent_values: dict[str, list[float]] = {name: [] for name in ("vision", "solver", "grader", "reviewer")}
+
+    for row in rows:
+        status = str(row["status"] or "unknown")
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if row["final_score"] is not None:
+            scores.append(float(row["final_score"]))
+        try:
+            payload = json.loads(str(row["payload_json"]))
+        except (TypeError, json.JSONDecodeError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        if bool(payload.get("reviewer_manual_review_required", False)):
+            manual_count += 1
+        if payload.get("errors"):
+            error_count += 1
+        for name in agent_values:
+            try:
+                value = float(payload.get(f"{name}_elapsed_seconds", 0) or 0)
+            except (TypeError, ValueError):
+                value = 0.0
+            if value > 0:
+                agent_values[name].append(value)
+
+    total = len(rows)
+    success_count = sum(1 for row in rows if row["final_score"] is not None)
+    averages = {
+        name: (round(sum(values) / len(values), 3) if values else None)
+        for name, values in agent_values.items()
+    }
+    return {
+        "reviews": total,
+        "success_rate": round(success_count / total, 4) if total else None,
+        "error_rate": round(error_count / total, 4) if total else None,
+        "manual_review_rate": round(manual_count / total, 4) if total else None,
+        "average_final_score": round(sum(scores) / len(scores), 3) if scores else None,
+        "average_agent_seconds": averages,
+        "status_counts": status_counts,
+        "sample_limit": max(1, min(int(limit), 1000)),
+    }
 
 
 def save_report(review_id: str, report: dict[str, Any]) -> str:
