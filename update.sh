@@ -20,12 +20,17 @@ rm -rf .venv
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+# Eval requirements include the normal app dependencies plus PyMuPDF used to
+# deterministically build the benchmark crops from the source PDF.
+pip install -r requirements-eval.txt
 
 if [ ! -f ".env.local" ]; then
   cp .env.example .env.local
   echo "Создан .env.local из .env.example"
 fi
+
+echo "Готовлю локальные eval-изображения из исходного PDF..."
+python evals/prepare_ege13_images.py
 
 echo
 echo "Обновление завершено."
