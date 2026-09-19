@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MathCheck AI — ЕГЭ №13</title>
+<script>
+window.MathJax={
+  tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},
+  options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <style>
 :root{
   color-scheme:dark;
@@ -26,8 +33,8 @@ label{display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bot
 .resultHero{display:grid;grid-template-columns:124px 1fr;gap:14px;align-items:stretch;padding-bottom:15px;border-bottom:1px solid var(--line)}.scoreCard{border:1px solid rgba(245,158,11,.24);background:linear-gradient(180deg,rgba(245,158,11,.11),rgba(245,158,11,.035));border-radius:14px;padding:12px;display:flex;flex-direction:column;justify-content:center;align-items:center}.score{font-size:44px;line-height:1;font-weight:950;letter-spacing:-.05em}.scoreLabel{margin-top:5px;color:#fde68a;font-size:10px;font-weight:850;text-align:center}.scoreState{margin-top:8px;border:1px solid rgba(148,163,184,.18);background:rgba(2,6,23,.3);border-radius:999px;padding:4px 7px;font-size:9.5px;color:#cbd5e1;text-align:center}.summaryBox{border:1px solid var(--line);background:rgba(15,23,42,.48);border-radius:14px;padding:13px 14px}.summaryKicker{font-size:10px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.08em}.feedback{margin-top:6px;font-size:17px;font-weight:900;line-height:1.38}.partPills{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.partPill{display:grid;grid-template-columns:25px 1fr;align-items:start;gap:7px;border:1px solid var(--line);background:rgba(2,6,23,.34);border-radius:11px;padding:8px 9px;font-size:11.5px;line-height:1.45;color:#dbeafe}.partPill b{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:rgba(148,163,184,.1);font-size:12px}
 .reportSection{margin-top:16px}.sectionHead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:9px}.sectionTitle{font-size:13px;color:#f1f5f9;font-weight:900}.sectionHint{font-size:10.5px;color:var(--muted);line-height:1.35;text-align:right}
 .solutionBoard{border:1px solid rgba(148,163,184,.20);background:linear-gradient(180deg,rgba(2,6,23,.55),rgba(2,6,23,.34));border-radius:15px;padding:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}.solutionGroup{border:1px solid rgba(148,163,184,.15);border-radius:13px;background:rgba(15,23,42,.42);overflow:hidden}.solutionGroup+.solutionGroup{margin-top:10px}.solutionGroupHead{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid rgba(148,163,184,.13);background:rgba(148,163,184,.035)}.solutionBadge{min-width:28px;height:28px;padding:0 8px;border-radius:9px;display:grid;place-items:center;background:rgba(245,158,11,.11);border:1px solid rgba(245,158,11,.22);color:#fde68a;font-size:11px;font-weight:950}.solutionGroupTitle{font-size:12px;font-weight:900;color:#e2e8f0}.solutionGroupMeta{margin-left:auto;color:#64748b;font-size:9.5px}.solutionLines{display:grid;gap:6px;padding:9px 10px 10px}.solutionLine{display:grid;grid-template-columns:25px minmax(0,1fr);gap:8px;align-items:start;border:1px solid transparent;border-radius:10px;padding:7px 8px;background:rgba(2,6,23,.16)}.solutionLine:nth-child(odd){background:rgba(148,163,184,.028)}.solutionLineNo{padding-top:3px;color:#475569;font-size:9.5px;text-align:right;user-select:none}.solutionLineContent{min-width:0;color:#e5edf7;white-space:pre-wrap;overflow-wrap:anywhere}.solutionLine.mathLine .solutionLineContent,.mathText,.answerText{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif}.solutionLine.mathLine .solutionLineContent{font-size:16px;line-height:1.72;letter-spacing:.005em;color:#f1f5f9}.solutionLine.noteLine .solutionLineContent{font-size:13px;line-height:1.58;color:#cbd5e1}.solutionLine.connector{display:block;text-align:center;background:transparent;padding:3px 8px}.solutionLine.connector .solutionLineNo{display:none}.solutionLine.connector .solutionLineContent{color:#94a3b8;font-size:11px;font-style:italic;text-transform:lowercase}.solutionLine.answerLine{border-color:rgba(245,158,11,.18);background:rgba(245,158,11,.055)}.solutionLine.answerLine .solutionLineContent{color:#fde68a;font-weight:750}.solutionReadNote{display:flex;gap:7px;align-items:flex-start;margin:9px 2px 0;color:#64748b;font-size:9.8px;line-height:1.4}.solutionReadNote::before{content:"i";display:grid;place-items:center;flex:0 0 16px;width:16px;height:16px;border:1px solid rgba(148,163,184,.18);border-radius:50%;color:#94a3b8;font-size:9px;font-weight:900}
-.frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:-.45em;text-align:center;line-height:1.05;margin:0 .08em;white-space:nowrap}.fracNum{border-bottom:1.25px solid currentColor;padding:0 .12em .06em}.fracDen{padding:.06em .12em 0}.mathDot{padding:0 .08em}.mathMuted{color:#94a3b8}
-.expertComments{display:grid;gap:10px}.expertEmpty{border:1px solid rgba(52,211,153,.22);background:var(--goodbg);color:#a7f3d0;border-radius:12px;padding:11px 12px;font-size:12.5px;line-height:1.5}.expertItem{border:1px solid rgba(251,113,133,.24);background:linear-gradient(180deg,rgba(127,29,29,.09),rgba(127,29,29,.035));border-radius:13px;overflow:hidden}.expertTop{display:flex;align-items:center;gap:9px;padding:10px 12px;border-bottom:1px solid rgba(251,113,133,.15)}.expertSection{display:grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:rgba(251,113,133,.13);color:#fecdd3;font-size:11px;font-weight:950}.expertTitle{font-size:13px;font-weight:900}.expertBody{padding:10px 12px;color:#dbeafe;font-size:12.5px;line-height:1.58}.compareGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 12px 12px}.compareBox{border-radius:11px;padding:9px 10px;min-width:0}.compareBox.bad{border:1px solid rgba(251,113,133,.22);background:rgba(251,113,133,.055)}.compareBox.good{border:1px solid rgba(52,211,153,.22);background:rgba(52,211,153,.055)}.compareLabel{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}.compareBox.bad .compareLabel{color:#fecdd3}.compareBox.good .compareLabel{color:#a7f3d0}.mathText{white-space:pre-line;font-size:14px;line-height:1.62;font-weight:600;overflow-wrap:anywhere}
+.inlineCorrections{padding:0 10px 10px}.inlineCorrectionsTitle{margin:2px 2px 7px;color:#fda4af;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.expertComments{display:grid;gap:10px}.expertEmpty{border:1px solid rgba(52,211,153,.22);background:var(--goodbg);color:#a7f3d0;border-radius:12px;padding:11px 12px;font-size:12.5px;line-height:1.5}.expertItem{border:1px solid rgba(251,113,133,.24);background:linear-gradient(180deg,rgba(127,29,29,.09),rgba(127,29,29,.035));border-radius:13px;overflow:hidden}.expertTop{display:flex;align-items:center;gap:9px;padding:10px 12px;border-bottom:1px solid rgba(251,113,133,.15)}.expertSection{display:grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:rgba(251,113,133,.13);color:#fecdd3;font-size:11px;font-weight:950}.expertTitle{font-size:13px;font-weight:900}.expertBody{padding:10px 12px;color:#dbeafe;font-size:12.5px;line-height:1.58}.compareGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 12px 12px}.compareBox{border-radius:11px;padding:9px 10px;min-width:0}.compareBox.bad{border:1px solid rgba(251,113,133,.22);background:rgba(251,113,133,.055)}.compareBox.good{border:1px solid rgba(52,211,153,.22);background:rgba(52,211,153,.07);color:#f8fafc}.compareLabel{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}.compareBox.bad .compareLabel{color:#fecdd3}.compareBox.good .compareLabel{color:#a7f3d0}.mathText{white-space:pre-line;font-size:14px;line-height:1.62;font-weight:600;overflow-wrap:anywhere}.compareBox.good .mathText{color:#f8fafc}
+.mathText mjx-container,.answerText mjx-container,.solutionLineContent mjx-container{color:inherit!important;max-width:100%;overflow-x:auto;overflow-y:hidden}.mathText mjx-container[display="true"],.answerText mjx-container[display="true"],.solutionLineContent mjx-container[display="true"]{margin:.18em 0!important;text-align:left!important}.mathFallback{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif}
 .answerBox{border:1px solid rgba(245,158,11,.24);background:linear-gradient(180deg,rgba(245,158,11,.07),rgba(245,158,11,.025));border-radius:13px;overflow:hidden}.answerHead{padding:10px 12px;border-bottom:1px solid rgba(245,158,11,.15);font-size:11.5px;color:#fde68a;font-weight:900}.answerParts{display:grid;grid-template-columns:1fr 1fr}.answerPart{padding:11px 12px;min-width:0}.answerPart+.answerPart{border-left:1px solid rgba(245,158,11,.15)}.answerPartLabel{font-size:10px;color:var(--muted);font-weight:850;margin-bottom:6px}.answerText{white-space:pre-line;font-size:14.5px;line-height:1.65;font-weight:600;color:#f1f5f9;overflow-wrap:anywhere}
 .circleTitle{font-size:12px;font-weight:900;padding:3px 3px 9px}.circle{display:none;border-radius:11px;overflow:hidden;background:#0f172a}.circle.show{display:block}.circle img{width:100%;height:auto;display:block}.circleNote{font-size:10.5px;color:var(--muted);line-height:1.4;padding:8px 3px 2px}
 .historyGrid{display:grid;gap:8px}.historyItem{border:1px solid var(--line);border-radius:11px;background:rgba(2,6,23,.28);padding:10px 11px}.historyHead{display:flex;justify-content:space-between;gap:12px;align-items:center}.historyMeta{font-size:10.5px;color:var(--muted)}.historyScore{font-size:20px;font-weight:950}.historySummary{margin-top:5px;font-size:12px;font-weight:800}.historyParts{margin-top:5px;color:#cbd5e1;font-size:11px;line-height:1.45}.historyAnswer{white-space:pre-line;margin-top:6px;color:#94a3b8;font-size:10.5px;line-height:1.4}.emptyHistory{color:var(--muted);font-size:12px}
@@ -38,7 +45,7 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:11px;overflow
 </head>
 <body>
 <main class="shell">
-  <div class="top"><div class="brand"><div class="logo">MC</div><div><h1>MathCheck AI</h1><p>ЕГЭ №13 · фото → подтверждение → экспертный комментарий</p></div></div><div class="version">2.9.7.15</div></div>
+  <div class="top"><div class="brand"><div class="logo">MC</div><div><h1>MathCheck AI</h1><p>ЕГЭ №13 · фото → подтверждение → экспертный комментарий</p></div></div><div class="version">2.9.7.16</div></div>
   <div class="progress"><div id="p1" class="prog active">1 · Фото</div><div id="p2" class="prog">2 · Подтверждение</div><div id="p3" class="prog">3 · Результат</div></div>
 
   <section class="card">
@@ -64,13 +71,13 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:11px;overflow
         </div>
       </div>
       <div id="chips" class="chips"></div>
-      <div class="actions"><button id="confirmBtn" class="btn good">Всё проверено — начать оценивание</button><button id="restoreBtn" class="btn ghost">Вернуть OCR</button></div>
+      <div class="actions"><button id="confirmBtn" class="btn good">Всё проверено — начать оценивание</button></div>
       <div id="gradeStatus" class="statusbox"><span class="spin"></span><span id="gradeStatusText"></span></div>
     </div>
   </section>
 
   <section id="resultCard" class="card hidden">
-    <div class="head"><div><h2>3. Результат проверки</h2><p>Решение оформлено как читаемая работа ученика, а замечания — как короткие экспертные карточки.</p></div><button id="newBtn" class="btn ghost">Новая работа</button></div>
+    <div class="head"><div><h2>3. Результат проверки</h2><p>Формулы показываются через LaTeX, а исправление стоит сразу под тем пунктом, к которому относится.</p></div><button id="newBtn" class="btn ghost">Новая работа</button></div>
     <div class="body">
       <div class="resultShell">
         <div class="analysis">
@@ -80,15 +87,12 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:11px;overflow
           </div>
 
           <div class="reportSection">
-            <div class="sectionHead"><div class="sectionTitle">Решение ученика</div><div class="sectionHint">показываем тот же подтверждённый текст, но визуально оформляем его для чтения</div></div>
+            <div class="sectionHead"><div class="sectionTitle">Решение ученика</div><div class="sectionHint">подтверждённый текст, оформленный для чтения</div></div>
             <div id="confirmedSolution" class="solutionBoard"></div>
-            <div class="solutionReadNote">Оформление ниже только визуальное: исходный подтверждённый текст ученика не переписывается и остаётся источником проверки.</div>
+            <div class="solutionReadNote">Оформление только визуальное: исходный подтверждённый текст ученика не переписывается и остаётся источником проверки.</div>
           </div>
 
-          <div class="reportSection">
-            <div class="sectionHead"><div class="sectionTitle">Комментарий эксперта</div><div class="sectionHint">только существенные замечания</div></div>
-            <div id="expertComments" class="expertComments"></div>
-          </div>
+          <div id="expertComments" class="expertComments hidden"></div>
 
           <div class="reportSection answerBox">
             <div class="answerHead">Правильный ответ</div>
@@ -109,6 +113,7 @@ details{margin-top:12px;border:1px solid var(--line);border-radius:11px;overflow
 const $=id=>document.getElementById(id);
 const HISTORY_KEY='mathcheck-ege13-result-history-v3';
 const st={file:null,url:null,ocr:null,final:null,timer:null,start:0,activeMathTarget:'equationText',currentArchived:false,history:[]};
+let mathRetry=0;
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2500)}
 function progress(n){[1,2,3].forEach(i=>{const e=$('p'+i);e.classList.toggle('active',i===n);e.classList.toggle('done',i<n)})}
 function busy(box,text,label){st.start=Date.now();$(box).classList.add('show');clearInterval(st.timer);const tick=()=>{const s=Math.floor((Date.now()-st.start)/1000);$(text).textContent=`${label} · ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};tick();st.timer=setInterval(tick,1000)}
@@ -131,8 +136,7 @@ function fillDraft(){if(!st.ocr)return;$('equationText').value=st.ocr.display_ta
 function clearCurrent(){st.ocr=null;st.final=null;st.currentArchived=false;$('confirmCard').classList.add('hidden');$('resultCard').classList.add('hidden');$('equationText').value='';$('intervalText').value='';$('solutionText').value='';$('chips').replaceChildren();$('ocrJson').textContent='—';$('finalJson').textContent='—';if(st.url)URL.revokeObjectURL(st.url);st.url=null;st.file=null;$('file').value='';$('mini').removeAttribute('src');$('full').removeAttribute('src');$('fileName').textContent='Выбери PNG, JPG или WEBP';$('scanBtn').disabled=true;progress(1)}
 $('file').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;archiveCurrentResult();st.ocr=null;st.final=null;st.currentArchived=false;$('confirmCard').classList.add('hidden');$('resultCard').classList.add('hidden');$('ocrJson').textContent='—';$('finalJson').textContent='—';$('equationText').value='';$('intervalText').value='';$('solutionText').value='';st.file=f;if(st.url)URL.revokeObjectURL(st.url);st.url=URL.createObjectURL(f);$('mini').src=st.url;$('full').src=st.url;$('fileName').textContent=`${f.name} · ${(f.size/1024).toFixed(0)} КБ`;$('scanBtn').disabled=false;progress(1)});
 $('scanBtn').addEventListener('click',async()=>{if(!st.file)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText','Распознаю работу');try{const fd=new FormData();fd.append('image',st.file);fd.append('student_id',$('studentId').value.trim()||'student-001');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photo',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});
-$('restoreBtn').addEventListener('click',()=>{fillDraft();toast('OCR-черновик восстановлен')});
-$('confirmBtn').addEventListener('click',async()=>{if(!st.ocr)return;const eq=$('equationText').value.trim(),iv=normalizeInterval($('intervalText').value),sol=$('solutionText').value.trim();if(!eq||!eq.includes('=')){toast('Проверь исходное уравнение: нужен знак =');$('equationText').focus();return}if(!iv||!iv.includes(';')){toast('Укажи интервал пункта б, например -3π; -3π/2');$('intervalText').focus();return}if(!sol){toast('Решение ученика не может быть пустым');$('solutionText').focus();return}$('confirmBtn').disabled=true;busy('gradeStatus','gradeStatusText','Проверяю решение');try{const task=buildTask(eq,iv);const payload={review_id:st.ocr.review_id,student_id:$('studentId').value.trim()||st.ocr.student_id||'student-001',task_type:'ege_13',confirmed_task_equation:eq,confirmed_interval:iv,task_statement:task,confirmed_task_statement:task,original_task_statement:st.ocr.original_task_statement||'',original_transcript:st.ocr.original_transcript||st.ocr.transcript||'',confirmed_transcript:sol};const d=await json(await fetch('/api/reviews/confirm-transcript',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}));st.final=d;st.currentArchived=false;$('finalJson').textContent=pretty(d);render(d);$('resultCard').classList.remove('hidden');progress(3);$('resultCard').scrollIntoView({behavior:'smooth'})}catch(e){toast('Ошибка проверки: '+e.message)}finally{idle('gradeStatus');$('confirmBtn').disabled=false}});
+$('confirmBtn').addEventListener('click',async()=>{if(!st.ocr)return;const eq=$('equationText').value.trim(),iv=normalizeInterval($('intervalText').value),sol=$('solutionText').value.trim();if(!eq||!eq.includes('=')){toast('Проверь исходное уравнение: нужен знак =');$('equationText').focus();return}if(!iv||!iv.includes(';')){toast('Укажи интервал пункта б, например -3π; -3π/2');$('intervalText').focus();return}if(!sol){toast('Решение ученика не может быть пустым');$('solutionText').focus();return}$('confirmBtn').disabled=true;busy('gradeStatus','gradeStatusText','Проверяю решение');try{const task=buildTask(eq,iv);const payload={review_id:st.ocr.review_id,student_id:$('studentId').value.trim()||st.ocr.student_id||'student-001',task_type:'ege_13',confirmed_task_equation:eq,confirmed_interval:iv,task_statement:task,confirmed_task_statement:task,original_task_statement:st.ocr.original_task_statement||'',original_transcript:st.ocr.original_transcript||st.ocr.transcript||'',confirmed_transcript:sol};const d=await json(await fetch('/api/reviews/confirm-transcript',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}));st.final=d;st.currentArchived=false;$('finalJson').textContent=pretty(d);$('resultCard').classList.remove('hidden');render(d);progress(3);$('resultCard').scrollIntoView({behavior:'smooth'})}catch(e){toast('Ошибка проверки: '+e.message)}finally{idle('gradeStatus');$('confirmBtn').disabled=false}});
 
 function groupSolution(text){
   const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
@@ -153,31 +157,79 @@ function normalizeMathDisplay(text){
     .replace(/√\(([^()]+)\)/g,'√$1')
     .replace(/\\cdot|\\times/g,'·').replace(/\s*\*\s*/g,' · ')
     .replace(/<=/g,'≤').replace(/>=/g,'≥').replace(/!=/g,'≠').replace(/->/g,'→')
-    .replace(/\^2\b/g,'²').replace(/\^3\b/g,'³')
-    .replace(/\+\-/g,'±').replace(/\bin\s*Z\b/gi,'∈ℤ').replace(/∈\s*Z\b/g,'∈ℤ')
-    .replace(/\s{2,}/g,' ').trim();
+    .replace(/\+\-/g,'±').replace(/\\in\s*\\mathbb\{Z\}/g,'∈ℤ').replace(/\s{2,}/g,' ').trim();
 }
-function appendPrettyMath(target,text){
-  const source=normalizeMathDisplay(text);
-  const re=/(-?(?:\d*π|√(?:\d+|[A-Za-z]+)|\d+|[A-Za-z]+))\/(-?(?:\d*π|√(?:\d+|[A-Za-z]+)|\d+|[A-Za-z]+))/g;
-  let last=0,m;
-  while((m=re.exec(source))){
-    if(m.index>last)target.append(document.createTextNode(source.slice(last,m.index)));
-    const frac=document.createElement('span');frac.className='frac';frac.setAttribute('aria-label',`${m[1]} делённое на ${m[2]}`);
-    const num=document.createElement('span');num.className='fracNum';num.textContent=m[1];
-    const den=document.createElement('span');den.className='fracDen';den.textContent=m[2];
-    frac.append(num,den);target.append(frac);last=re.lastIndex;
-  }
-  if(last<source.length)target.append(document.createTextNode(source.slice(last)));
+function toLatex(text){
+  let s=String(text||'').trim().replace(/\$/g,'').replace(/−/g,'-');
+  if(!s)return'';
+  s=s.replace(/\\pi\b/g,'π').replace(/\bpi\b/gi,'π');
+  s=s.replace(/\\sqrt\s*\{([^{}]+)\}/g,'√($1)').replace(/sqrt\s*\(\s*([^()]+)\s*\)/gi,'√($1)');
+  s=s.replace(/\*\*/g,'^').replace(/∈\s*ℤ/g,' INTEGERS ').replace(/\bin\s*Z\b/gi,' INTEGERS ');
+  s=s.replace(/√\s*\(([^()]+)\)/g,'SQRT{$1}').replace(/√\s*([A-Za-z0-9]+)/g,'SQRT{$1}');
+  s=s.replace(/π/g,'PI');
+  const token='(?:-?(?:\\d*PI|SQRT\\{[^{}]+\\}|\\d+|[A-Za-z]+(?:\\^\\{?\\d+\\}?)))';
+  const fracRe=new RegExp('('+token+')\\s*\\/\\s*('+token+')','g');
+  s=s.replace(fracRe,'\\frac{$1}{$2}');
+  s=s.replace(/PI/g,'\\pi').replace(/SQRT\{([^{}]+)\}/g,'\\sqrt{$1}');
+  s=s.replace(/INTEGERS/g,'\\in \\mathbb{Z}').replace(/<=/g,'\\le ').replace(/>=/g,'\\ge ').replace(/!=/g,'\\ne ');
+  s=s.replace(/\s*\*\s*/g,' \\cdot ').replace(/·/g,'\\cdot ');
+  s=s.replace(/\b(sin|cos|tan)\b/gi,m=>'\\'+m.toLowerCase());
+  s=s.replace(/\btg\b/gi,'\\tan').replace(/\bctg\b/gi,'\\cot');
+  s=s.replace(/∈/g,'\\in ').replace(/ℤ/g,'\\mathbb{Z}').replace(/±/g,'\\pm ').replace(/≤/g,'\\le ').replace(/≥/g,'\\ge ').replace(/≠/g,'\\ne ');
+  return s.replace(/\s{2,}/g,' ').trim();
+}
+function setMath(el,text,display=true){
+  const raw=String(text||'').trim();
+  delete el.dataset.mathRendered;
+  el.dataset.mathLatex=toLatex(raw);
+  el.dataset.mathDisplay=display?'1':'0';
+  el.dataset.mathFallback=normalizeMathDisplay(raw);
+  el.classList.add('mathFallback');
+  el.textContent=el.dataset.mathFallback||'—';
+}
+function mathNodes(root){const out=[];if(root?.matches?.('[data-math-latex]'))out.push(root);root?.querySelectorAll?.('[data-math-latex]').forEach(x=>out.push(x));return out}
+function typesetMath(root){
+  const mj=window.MathJax;
+  if(!mj?.startup?.promise){if(mathRetry<8){mathRetry+=1;setTimeout(()=>typesetMath(root),350)}return}
+  mathRetry=0;
+  mj.startup.promise.then(()=>{
+    const nodes=mathNodes(root).filter(x=>x.dataset.mathRendered!=='1');
+    if(!nodes.length)return;
+    nodes.forEach(el=>{const tex=el.dataset.mathLatex||'';el.textContent=el.dataset.mathDisplay==='1'?`\\[${tex}\\]`:`\\(${tex}\\)`});
+    if(mj.typesetClear)mj.typesetClear(nodes);
+    return mj.typesetPromise(nodes).then(()=>nodes.forEach(el=>{el.dataset.mathRendered='1'}));
+  }).catch(()=>{mathNodes(root).forEach(el=>{el.textContent=el.dataset.mathFallback||'—';delete el.dataset.mathRendered})});
 }
 function solutionLineType(raw,groupKey){
   if(/^(?:или|и)$/i.test(raw))return'connector';
   if(groupKey==='Ответ')return'answerLine';
+  if(/[А-Яа-яЁё]{3,}/.test(raw))return'noteLine';
   if(/[=<>≤≥≠]|(?:sin|cos|tg|tan|ctg|π|pi|sqrt|√|\^|∈|\bZ\b)/i.test(raw))return'mathLine';
   return'noteLine';
 }
-function renderSolution(text){
-  const root=$('confirmedSolution');root.replaceChildren();const groups=groupSolution(text);
+function commentKey(item){const s=String(item?.section||'').trim().toLowerCase();if(s==='а'||s==='a'||/пункт\s*[аa]/i.test(s))return'а';if(s==='б'||s==='b'||/пункт\s*[бb]/i.test(s))return'б';return''}
+function fillMathBlock(el,text){
+  el.replaceChildren();const rows=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!rows.length){el.textContent='—';return}
+  rows.forEach(line=>{const row=document.createElement('div');setMath(row,line,true);el.append(row)});
+}
+function makeExpertCard(item){
+  const card=document.createElement('article');card.className='expertItem';
+  const top=document.createElement('div');top.className='expertTop';
+  const section=document.createElement('span');section.className='expertSection';section.textContent=item.section||'!';
+  const title=document.createElement('div');title.className='expertTitle';title.textContent=item.title||'Комментарий';top.append(section,title);card.append(top);
+  if(item.comment){const body=document.createElement('div');body.className='expertBody';body.textContent=item.comment;card.append(body)}
+  if(item.student_fragment||item.correction){
+    const compare=document.createElement('div');compare.className='compareGrid';
+    if(item.student_fragment){const bad=document.createElement('div');bad.className='compareBox bad';const lab=document.createElement('div');lab.className='compareLabel';lab.textContent='В работе';const math=document.createElement('div');math.className='mathText';fillMathBlock(math,item.student_fragment);bad.append(lab,math);compare.append(bad)}
+    if(item.correction){const good=document.createElement('div');good.className='compareBox good';const lab=document.createElement('div');lab.className='compareLabel';lab.textContent='Как исправить';const math=document.createElement('div');math.className='mathText';fillMathBlock(math,item.correction);good.append(lab,math);compare.append(good)}
+    card.append(compare);
+  }
+  return card;
+}
+function renderSolution(text,comments){
+  const root=$('confirmedSolution');root.replaceChildren();const groups=groupSolution(text);const rest=[];const byPart={а:[],б:[]};
+  (comments||[]).forEach(item=>{const key=commentKey(item);if(key)byPart[key].push(item);else rest.push(item)});
   if(!groups.length){root.textContent='—';return}
   groups.forEach(g=>{
     const section=document.createElement('section');section.className='solutionGroup';
@@ -191,31 +243,24 @@ function renderSolution(text){
       if(!raw)return;const type=solutionLineType(raw,g.key);const line=document.createElement('div');line.className=`solutionLine ${type}`;
       const no=document.createElement('div');no.className='solutionLineNo';if(type!=='connector'){visualNo+=1;no.textContent=visualNo}
       const content=document.createElement('div');content.className='solutionLineContent';
-      if(type==='mathLine'||type==='answerLine')appendPrettyMath(content,raw);else content.textContent=raw;
+      if(type==='mathLine'||type==='answerLine')setMath(content,raw,true);else content.textContent=raw;
       line.append(no,content);lines.append(line);
     });
-    section.append(lines);root.append(section);
-  })
-}
-function fillMathBlock(el,text){el.replaceChildren();if(!text){el.textContent='—';return}String(text).split(/\r?\n/).forEach((line,i)=>{if(i)el.append(document.createElement('br'));appendPrettyMath(el,line)})}
-function renderExpertComments(comments){
-  const box=$('expertComments');box.replaceChildren();
-  if(!comments.length){const ok=document.createElement('div');ok.className='expertEmpty';ok.textContent='Дополнительных замечаний нет.';box.append(ok);return}
-  comments.forEach(item=>{
-    const card=document.createElement('article');card.className='expertItem';
-    const top=document.createElement('div');top.className='expertTop';const section=document.createElement('span');section.className='expertSection';section.textContent=item.section||'!';const title=document.createElement('div');title.className='expertTitle';title.textContent=item.title||'Комментарий';top.append(section,title);card.append(top);
-    if(item.comment){const body=document.createElement('div');body.className='expertBody';body.textContent=item.comment;card.append(body)}
-    if(item.student_fragment||item.correction){const compare=document.createElement('div');compare.className='compareGrid';if(item.student_fragment){const bad=document.createElement('div');bad.className='compareBox bad';const lab=document.createElement('div');lab.className='compareLabel';lab.textContent='В работе';const math=document.createElement('div');math.className='mathText';fillMathBlock(math,item.student_fragment);bad.append(lab,math);compare.append(bad)}if(item.correction){const good=document.createElement('div');good.className='compareBox good';const lab=document.createElement('div');lab.className='compareLabel';lab.textContent='Как исправить';const math=document.createElement('div');math.className='mathText';fillMathBlock(math,item.correction);good.append(lab,math);compare.append(good)}card.append(compare)}
-    box.append(card);
-  })
+    section.append(lines);
+    if(byPart[g.key]?.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Исправление по этому пункту';wrap.append(cap);byPart[g.key].forEach(item=>wrap.append(makeExpertCard(item)));section.append(wrap)}
+    root.append(section);
+  });
+  if(rest.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Дополнительное замечание';wrap.append(cap);rest.forEach(item=>wrap.append(makeExpertCard(item)));root.append(wrap)}
 }
 function render(d){
-  const r=d.report||{},max=d.max_score??r.max_score??2,sc=d.final_score??r.score;
+  const r=d.report||{},max=d.max_score??r.max_score??2,sc=d.final_score??r.score,comments=Array.isArray(r.expert_comments)?r.expert_comments:[];
   $('score').textContent=sc==null?'—':`${sc}/${max}`;$('scoreStatus').textContent=statusRu(d.status);
   $('feedback').textContent=r.expert_comment||d.feedback||'Проверка завершена.';$('partA').textContent=r.part_a_comment||'—';$('partB').textContent=r.part_b_comment||'—';
-  renderSolution(r.confirmed_solution_text||d.confirmed_transcript||d.transcript||'');renderExpertComments(Array.isArray(r.expert_comments)?r.expert_comments:[]);
+  renderSolution(r.confirmed_solution_text||d.confirmed_transcript||d.transcript||'',comments);
+  $('expertComments').replaceChildren();
   fillMathBlock($('answerA'),r.correct_answer_part_a||'—');fillMathBlock($('answerB'),r.correct_answer_part_b||'—');
   const u=d.report_circle_url||r.correct_trig_circle_url;if(u){$('circleImg').src=u+(u.includes('?')?'&':'?')+'t='+Date.now();$('circle').classList.add('show')}else{$('circle').classList.remove('show');$('circleImg').removeAttribute('src')}
+  requestAnimationFrame(()=>typesetMath($('resultCard')));
 }
 async function copy(id){try{await navigator.clipboard.writeText($(id).textContent);toast('Скопировано')}catch{toast('Не удалось скопировать')}}
 $('copyOcr').onclick=()=>copy('ocrJson');$('copyFinal').onclick=()=>copy('finalJson');$('newBtn').addEventListener('click',()=>{archiveCurrentResult();clearCurrent();window.scrollTo({top:0,behavior:'smooth'})});$('clearHistoryBtn').addEventListener('click',()=>{st.history=[];saveHistory();renderHistory();toast('История очищена')});loadHistory();
