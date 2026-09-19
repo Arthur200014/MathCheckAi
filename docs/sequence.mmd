@@ -1,25 +1,46 @@
 sequenceDiagram
     actor U as User
+    participant UI as Browser UI
     participant API as FastAPI
     participant V as Vision Agent
+    participant PF as Preflight
     participant S as Solver Agent
-    participant RV as SymPy Reference Verifier
+    participant RV as Fast SymPy Verifier
     participant G as Grader Agent
     participant R as Reviewer Agent
-    participant T as Tools/SQLite
+    participant T as Report/SQLite
 
-    U->>API: one photo (task + student solution)
-    API->>V: original image bytes
-    V-->>API: draft task statement + draft student transcript + uncertainty metadata
-    API-->>U: show scan + two editable OCR fields
-    U->>API: confirmed task statement + confirmed student transcript
-    API->>S: confirmed task statement only
-    S-->>API: independent machine solution
-    API->>RV: solver spec + confirmed task statement
-    RV-->>API: verified reference / SymPy correction
+    U->>UI: choose 1-8 photos of one solution
+    UI->>API: POST /api/reviews/photos, images[]
+    alt one photo
+        API->>V: original image bytes
+    else several photos
+        API->>API: stitch pages in upload order
+        API->>V: one ordered multi-page image
+    end
+    V-->>API: draft student transcript + uncertainty metadata
+    API-->>UI: OCR draft + detected equation/interval + progress time
+    UI-->>U: show all source photos and editable fields
+
+    loop until input is unambiguous
+        U->>UI: edit equation / interval / student transcript
+        UI->>API: POST /api/reviews/preflight
+        API->>PF: deterministic EGE-13 validation
+        PF-->>API: ok or concrete issues
+        API-->>UI: validation result
+    end
+
+    U->>UI: confirm and start grading
+    UI->>API: POST /api/reviews/confirm-transcript
+    API->>S: confirmed equation + interval only
+    S-->>API: independent reference solution
+    API->>RV: confirmed task + solver spec
+    RV-->>API: verified families and interval roots
     API->>G: confirmed student transcript + verified reference + criteria
-    G-->>API: compact single-pass grading audit
-    API->>R: deterministic score + compact audit data
-    R-->>API: one-pass consistency audit
-    API->>T: render reference circle + save report/review
-    API-->>U: score + step report + circle URL + technical JSON
+    G-->>API: deterministic draft score + compact LLM audit
+    API->>R: immutable draft score + audit facts
+    R-->>API: consistency advisory
+    API->>T: build report, reference circle, save history
+    T-->>API: persisted review/report
+    API-->>UI: final score + expert comments + correct answer + timings
+    UI-->>U: final report
