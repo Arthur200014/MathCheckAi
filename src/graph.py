@@ -11,7 +11,7 @@ from src.agents.vision import vision_agent
 from src.progress_store import finish_stage, start_stage
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
-from src.tools.ege13_user_report import build_user_report_node
+from src.tools.ege13_user_report_exact import build_user_report_node
 
 
 def _timed(stage: str, func):
