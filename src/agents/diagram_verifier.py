@@ -28,11 +28,12 @@ def _verify_from_state(state: ReviewState, *, recheck: bool = False):
 
 def diagram_verifier_node(state: ReviewState) -> dict:
     """First deterministic pass. Negative/uncertain results trigger reinspection."""
-    if state.get("task_type") != "ege_13":
+    if state.get("task_type") != "ege_13" or state.get("diagram_scope_ignored", False):
         return {
+            "diagram_method_used": False,
             "diagram_verification_status": "NOT_APPLICABLE",
             "diagram_part_b_valid": None,
-            "diagram_verification_results": [],
+            "diagram_verification_results": ["diagram_ignored_by_project_scope"] if state.get("diagram_scope_ignored", False) else [],
             "diagram_verification_issues": [],
             "diagram_checked_correspondences": 0,
             "diagram_reinspection_needed": False,
@@ -59,6 +60,20 @@ def diagram_final_verifier_node(state: ReviewState) -> dict:
     A negative diagram verdict may reduce score only if the second independent
     (usually zoomed) pass confirms the same substantive error signature.
     """
+    if state.get("diagram_scope_ignored", False):
+        return {
+            "diagram_verification_status": "NOT_APPLICABLE",
+            "diagram_part_b_valid": None,
+            "diagram_verification_results": ["diagram_ignored_by_project_scope"],
+            "diagram_verification_issues": [],
+            "diagram_checked_correspondences": 0,
+            "diagram_cross_pass_confirmed": False,
+            "diagram_cross_pass_signatures": [],
+            "diagram_manual_review_scope": "",
+            "diagram_manual_review_reasons": [],
+            "diagram_reinspection_resolved": True,
+        }
+
     first_status = str(state.get("diagram_initial_verification_status", state.get("diagram_verification_status", "DIAGRAM_UNVERIFIED")))
     first_signatures = set(state.get("diagram_initial_evidence_signatures", []))
     second = _verify_from_state(state, recheck=True)
@@ -86,9 +101,6 @@ def diagram_final_verifier_node(state: ReviewState) -> dict:
             "diagram_reinspection_resolved": True,
         }
 
-    # A zoomed second pass can rescue an uncertain first pass. But if the passes
-    # actively conflict (first invalid vs second verified), a human gets the
-    # diagram instead of an automatic score change.
     if first_status not in {"DIAGRAM_INVALID"} and second.status == "DIAGRAM_VERIFIED":
         results.append("reinspection_resolved_to_verified")
         return {
@@ -118,10 +130,6 @@ def diagram_final_verifier_node(state: ReviewState) -> dict:
             "diagram_reinspection_resolved": True,
         }
 
-    # Any unresolved/conflicting picture remains UNKNOWN evidence. Stage 2.7.4
-    # does not convert unreadability into a student error or a mandatory human
-    # review. Downstream math/semantic checks decide whether the score is
-    # otherwise resolvable.
     reasons = []
     if first_status == "DIAGRAM_INVALID" and second.status == "DIAGRAM_VERIFIED":
         reasons.append("visual_passes_conflict_invalid_vs_verified")
