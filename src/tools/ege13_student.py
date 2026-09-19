@@ -59,14 +59,39 @@ def _parameter_candidates(expr: str) -> list[str]:
     return out
 
 
+def _trim_family_math_prefix(expr: str) -> str:
+    """Drop explanatory prose after an otherwise valid school formula.
+
+    Handwritten/OCR text often joins a family and a comment in one logical
+    line, e.g. ``x = 2πk получено ...`` or ``x = ... целых k нет``.  Prose is
+    not part of the mathematical expression and must not turn into fake SymPy
+    identifiers.
+    """
+    text = _normalize(expr).strip()
+    text = re.sub(r"\\text\s*\{.*$", "", text).strip()
+    text = re.split(r"\s+(?=[А-Яа-яЁё])", text, maxsplit=1)[0].strip()
+    return text.rstrip(" ,;:.-")
+
+
 def _clean_family_expr(expr: str, parameter: str) -> str:
-    text = _normalize(expr).strip().rstrip(" ,;\\")
+    text = _trim_family_math_prefix(expr).rstrip(" ,;\\")
     text = re.sub(r"(?:\\quad|\\qquad)\s*$", "", text).strip()
     p = re.escape(parameter)
     text = re.sub(r"(?<=[A-Za-z0-9_)])\s*(?=(?:\\pi|π|\bpi\b))", "*", text)
     text = re.sub(rf"(\\pi|π|\bpi\b)\s*(?={p}(?![A-Za-z0-9]))", r"\1*", text)
     text = re.sub(rf"(?<![A-Za-z0-9])({p})\s*(?=(?:\\pi|π|\bpi\b))", r"\1*", text)
     return text
+
+
+def _expand_plusminus(expr: str) -> list[str]:
+    """Expand standard ±/∓ school notation into linked concrete branches."""
+    text = str(expr or "").replace("\\pm", "±").replace("\\mp", "∓")
+    if "±" not in text and "∓" not in text:
+        return [text]
+    return [
+        text.replace("±", "+").replace("∓", "-"),
+        text.replace("±", "-").replace("∓", "+"),
+    ]
 
 
 def _contains_periodic_parameter(text: str) -> bool:
@@ -292,26 +317,24 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
                 continue
             expr_text = _clean_family_expr(expr_text, parameter)
             symbol = sp.Symbol(parameter, integer=True)
-            try:
-                parsed = _sympify(expr_text, extra={parameter: symbol})
-            except Exception as exc:
-                errors.append(f"student_family_parse_failed:{expr_text}:{exc}")
-                continue
-            # A genuine EGE general-solution family has exactly one free integer
-            # parameter. If OCR/prose produced extra symbols, this x= fragment is
-            # not safe machine evidence and must be ignored rather than scored.
-            if parsed.free_symbols != {symbol}:
-                continue
-            canonical = sp.sstr(sp.simplify(parsed))
-            sample_values = [sp.simplify(parsed.subs(symbol, i)) for i in range(-6, 7)]
-            if any(value.free_symbols for value in sample_values):
-                continue
-            sample_set = _dedupe(sample_values)
-            if any(_same_set(sample_set, old) for old in seen_sets):
-                continue
-            seen_sets.append(sample_set)
-            families.append({"expression": canonical, "parameter": parameter, "source_text": segment})
-            sources.append(segment)
+            for variant in _expand_plusminus(expr_text):
+                try:
+                    parsed = _sympify(variant, extra={parameter: symbol})
+                except Exception as exc:
+                    errors.append(f"student_family_parse_failed:{variant}:{exc}")
+                    continue
+                if parsed.free_symbols != {symbol}:
+                    continue
+                canonical = sp.sstr(sp.simplify(parsed))
+                sample_values = [sp.simplify(parsed.subs(symbol, i)) for i in range(-6, 7)]
+                if any(value.free_symbols for value in sample_values):
+                    continue
+                sample_set = _dedupe(sample_values)
+                if any(_same_set(sample_set, old) for old in seen_sets):
+                    continue
+                seen_sets.append(sample_set)
+                families.append({"expression": canonical, "parameter": parameter, "source_text": segment})
+                sources.append(segment)
     return families, sources, errors
 
 
