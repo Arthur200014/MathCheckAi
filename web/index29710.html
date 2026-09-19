@@ -155,6 +155,7 @@ function normalizeMathDisplay(text){
     .replace(/\\pi\b/g,'π').replace(/\bpi\b/gi,'π')
     .replace(/\\sqrt\s*\{([^{}]+)\}/g,'√($1)').replace(/sqrt\s*\(\s*([^()]+)\s*\)/gi,'√($1)')
     .replace(/√\(([^()]+)\)/g,'√$1')
+    .replace(/\*\*2/g,'²').replace(/\*\*3/g,'³').replace(/\^2\b/g,'²').replace(/\^3\b/g,'³')
     .replace(/\\cdot|\\times/g,'·').replace(/\s*\*\s*/g,' · ')
     .replace(/<=/g,'≤').replace(/>=/g,'≥').replace(/!=/g,'≠').replace(/->/g,'→')
     .replace(/\+\-/g,'±').replace(/\\in\s*\\mathbb\{Z\}/g,'∈ℤ').replace(/\s{2,}/g,' ').trim();
@@ -164,17 +165,17 @@ function toLatex(text){
   if(!s)return'';
   s=s.replace(/\\pi\b/g,'π').replace(/\bpi\b/gi,'π');
   s=s.replace(/\\sqrt\s*\{([^{}]+)\}/g,'√($1)').replace(/sqrt\s*\(\s*([^()]+)\s*\)/gi,'√($1)');
-  s=s.replace(/\*\*/g,'^').replace(/∈\s*ℤ/g,' INTEGERS ').replace(/\bin\s*Z\b/gi,' INTEGERS ');
+  s=s.replace(/²/g,'^2').replace(/³/g,'^3').replace(/\*\*/g,'^').replace(/∈\s*ℤ/g,' INTEGERS ').replace(/\bin\s*Z\b/gi,' INTEGERS ');
   s=s.replace(/√\s*\(([^()]+)\)/g,'SQRT{$1}').replace(/√\s*([A-Za-z0-9]+)/g,'SQRT{$1}');
   s=s.replace(/π/g,'PI');
   const token='(?:-?(?:\\d*PI|SQRT\\{[^{}]+\\}|\\d+|[A-Za-z]+(?:\\^\\{?\\d+\\}?)))';
   const fracRe=new RegExp('('+token+')\\s*\\/\\s*('+token+')','g');
   s=s.replace(fracRe,'\\frac{$1}{$2}');
-  s=s.replace(/PI/g,'\\pi').replace(/SQRT\{([^{}]+)\}/g,'\\sqrt{$1}');
+  s=s.replace(/PI/g,'\\pi ').replace(/SQRT\{([^{}]+)\}/g,'\\sqrt{$1}');
   s=s.replace(/INTEGERS/g,'\\in \\mathbb{Z}').replace(/<=/g,'\\le ').replace(/>=/g,'\\ge ').replace(/!=/g,'\\ne ');
-  s=s.replace(/\s*\*\s*/g,' \\cdot ').replace(/·/g,'\\cdot ');
-  s=s.replace(/\b(sin|cos|tan)\b/gi,m=>'\\'+m.toLowerCase());
-  s=s.replace(/\btg\b/gi,'\\tan').replace(/\bctg\b/gi,'\\cot');
+  s=s.replace(/\s*\*\s*/g,' \\cdot ').replace(/[·×]/g,'\\cdot ');
+  s=s.replace(/(^|[^\\])\b(sin|cos|tan)\b/gi,(_,p,fn)=>p+'\\'+fn.toLowerCase());
+  s=s.replace(/(^|[^\\])\btg\b/gi,(_,p)=>p+'\\tan').replace(/(^|[^\\])\bctg\b/gi,(_,p)=>p+'\\cot');
   s=s.replace(/∈/g,'\\in ').replace(/ℤ/g,'\\mathbb{Z}').replace(/±/g,'\\pm ').replace(/≤/g,'\\le ').replace(/≥/g,'\\ge ').replace(/≠/g,'\\ne ');
   return s.replace(/\s{2,}/g,' ').trim();
 }
@@ -247,10 +248,10 @@ function renderSolution(text,comments){
       line.append(no,content);lines.append(line);
     });
     section.append(lines);
-    if(byPart[g.key]?.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Исправление по этому пункту';wrap.append(cap);byPart[g.key].forEach(item=>wrap.append(makeExpertCard(item)));section.append(wrap)}
+    if(byPart[g.key]?.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Комментарий эксперта · исправление по этому пункту';wrap.append(cap);byPart[g.key].forEach(item=>wrap.append(makeExpertCard(item)));section.append(wrap)}
     root.append(section);
   });
-  if(rest.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Дополнительное замечание';wrap.append(cap);rest.forEach(item=>wrap.append(makeExpertCard(item)));root.append(wrap)}
+  if(rest.length){const wrap=document.createElement('div');wrap.className='inlineCorrections';const cap=document.createElement('div');cap.className='inlineCorrectionsTitle';cap.textContent='Комментарий эксперта · дополнительное замечание';wrap.append(cap);rest.forEach(item=>wrap.append(makeExpertCard(item)));root.append(wrap)}
 }
 function render(d){
   const r=d.report||{},max=d.max_score??r.max_score??2,sc=d.final_score??r.score,comments=Array.isArray(r.expert_comments)?r.expert_comments:[];
