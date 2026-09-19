@@ -16,7 +16,7 @@ def test_fixes_are_shown_under_the_matching_part():
     html = Path("web/index29710.html").read_text(encoding="utf-8")
 
     assert "inlineCorrections" in html
-    assert "Исправление по этому пункту" in html
+    assert "исправление по этому пункту" in html
     assert "byPart[g.key]" in html
     assert "Как исправить" in html
     assert ".compareBox.good .mathText{color:#f8fafc}" in html
