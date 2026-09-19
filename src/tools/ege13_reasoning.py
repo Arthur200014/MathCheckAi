@@ -5,12 +5,12 @@ import re
 import sympy as sp
 
 from src.tools.ege13_reference import _dedupe, _equal, _extract_part_a_equation, _sympify, _verify_family_samples
-from src.tools.ege13_student import _extract_pi_tokens, _extract_student_families_from_text, _parse_last_rhs_root
+from src.tools.ege13_student import _extract_pi_tokens, _extract_student_families_from_text, _parse_result_root
 
 
 # d)/6) are observed OCR variants of handwritten Cyrillic б).
-_PART_B_MARKER_RE = re.compile(r"(?i)^\s*(?:б|b|d|6)\s*\)")
-_INDEXED_ROOT_RE = re.compile(r"(?i)x_\{?\d+\}?\s*=")
+_PART_B_MARKER_RE = re.compile(r"(?i)^\s*(?:б|b|d|6)\s*(?:\)|\.|:)")
+_INDEXED_ROOT_RE = re.compile(r"(?i)x(?:_?\{?\d+\}?|\d+)\s*=")
 
 
 def _equivalent_to_original(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol) -> bool:
@@ -83,7 +83,11 @@ def deterministic_reasoning_overrides_ege13(
         if _PART_B_MARKER_RE.search(text):
             in_part_b = True
 
-        families, _, _ = _extract_student_families_from_text(text)
+        # Only part-a general families should be evaluated against the original
+        # equation. Once part b starts, x=... is a root-selection calculation.
+        families = []
+        if not in_part_b:
+            families, _, _ = _extract_student_families_from_text(text)
         if families and reference_residual is not None:
             family_errors: list[str] = []
             for family in families:
@@ -95,20 +99,18 @@ def deterministic_reasoning_overrides_ege13(
                         family["parameter"],
                     )
                 )
-            if family_errors:
-                overrides[sid] = {
-                    "status": "incorrect",
-                    "comment": "В общем решении есть значения, которые не являются корнями исходного уравнения.",
-                }
-            else:
-                overrides[sid] = {
-                    "status": "correct",
-                    "comment": "Общее решение проверено подстановкой.",
-                }
+            overrides[sid] = {
+                "status": "incorrect" if family_errors else "correct",
+                "comment": (
+                    "В общем решении есть значения, которые не являются корнями исходного уравнения."
+                    if family_errors
+                    else "Общее решение проверено подстановкой."
+                ),
+            }
             continue
 
         if in_part_b and _INDEXED_ROOT_RE.search(text) and expected_values:
-            roots, _ = _parse_last_rhs_root(text)
+            roots, _ = _parse_result_root(text)
             parsed: list[sp.Expr] = []
             for raw in roots:
                 try:
@@ -123,13 +125,10 @@ def deterministic_reasoning_overrides_ege13(
                 }
             continue
 
-        # A compact line like "-13π/4; -3π; -2π" is also a real part-b answer.
-        # Check the whole list against the verified set instead of letting the LLM
-        # call a correct list incomplete by mistake. Interval lines are excluded.
         if in_part_b and expected_values:
             lower = text.lower()
             looks_like_interval = any(token in lower for token in ("[", "]", "≤", "\\le", "<"))
-            has_family = re.search(r"(?i)\bx\s*=", text) is not None
+            has_family = re.search(r"(?i)\bx\s*=", text) is not None and re.search(r"(?i)(?:∈|\\in)\s*(?:ℤ|Z|\\mathbb)", text) is not None
             if not looks_like_interval and not has_family:
                 roots, _ = _extract_pi_tokens(text)
                 parsed: list[sp.Expr] = []
