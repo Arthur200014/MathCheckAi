@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 from langgraph.graph import END, START, StateGraph
 
 from src.agents.diagram_verifier import diagram_final_verifier_node, diagram_verifier_node
@@ -52,25 +50,21 @@ def route_after_task_profile(state: ReviewState) -> str:
     return "continue" if state.get("task_profile_ok", False) else "unsupported"
 
 
-def _uses_visual_selection(state: ReviewState) -> bool:
-    if state.get("task_type") != "ege_13" or not state.get("image_b64"):
-        return False
-    text = str(state.get("confirmed_transcript") or state.get("transcript") or "").lower()
-    return bool(re.search(r"окруж|дуг|рисунк|графическ|единичн.{0,8}круг|тригонометрическ", text))
-
-
 def route_after_reference(state: ReviewState) -> str:
     if not state.get("reference_verification_ok", False):
         return "review"
-    return "diagram" if _uses_visual_selection(state) else "grade"
+    # By project scope we do not inspect or score the student's drawn trig circle.
+    # Part б is checked from the confirmed written solution and selected roots.
+    return "grade"
 
 
 def route_after_diagram_verify(state: ReviewState) -> str:
-    return "reinspect" if state.get("diagram_reinspection_needed", False) else "grade"
+    return "grade"
 
 
 def _wire_tail(graph: StateGraph) -> None:
     graph.add_node("verify_reference", _timed("verify_reference", reference_verifier_agent))
+    # Compatibility nodes are kept, but the active graph no longer routes into them.
     graph.add_node("diagram_vision", _timed("diagram_vision", diagram_vision_node))
     graph.add_node("diagram_verify", _timed("diagram_verify", diagram_verifier_node))
     graph.add_node("diagram_reinspect", _timed("diagram_reinspect", diagram_reinspect_node))
@@ -83,16 +77,8 @@ def _wire_tail(graph: StateGraph) -> None:
     graph.add_conditional_edges(
         "verify_reference",
         route_after_reference,
-        {"diagram": "diagram_vision", "grade": "grader", "review": "reviewer"},
+        {"grade": "grader", "review": "reviewer"},
     )
-    graph.add_edge("diagram_vision", "diagram_verify")
-    graph.add_conditional_edges(
-        "diagram_verify",
-        route_after_diagram_verify,
-        {"reinspect": "diagram_reinspect", "grade": "grader"},
-    )
-    graph.add_edge("diagram_reinspect", "diagram_final_verify")
-    graph.add_edge("diagram_final_verify", "grader")
     graph.add_edge("grader", "reviewer")
     graph.add_edge("reviewer", "build_report")
     graph.add_edge("build_report", "persist_review")
