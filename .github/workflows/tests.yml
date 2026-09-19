@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Check eval scripts
-        run: python -m py_compile evals/run_ege13_benchmark.py evals/prepare_ege13_images.py evals/validate_ege13_release.py
+        run: python -m py_compile evals/run_ege13_benchmark.py evals/run_ege13_vision_benchmark.py evals/run_model_selection.py evals/prepare_ege13_images.py evals/validate_ege13_release.py
       - name: Check EGE-13 release cases
         env:
           PYTHONUNBUFFERED: '1'

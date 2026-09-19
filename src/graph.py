@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph
 
-from src.agents.diagram_verifier import diagram_final_verifier_node, diagram_verifier_node
-from src.agents.diagram_vision import diagram_reinspect_node, diagram_vision_node
 from src.agents.grader import grader_agent
 from src.agents.persistence import persist_review_node
 from src.agents.reference_verifier import reference_verifier_agent
 from src.agents.reviewer import reviewer_agent
 from src.agents.solver import solver_agent
 from src.agents.vision import vision_agent
+from src.observability.runtime import finish_trace_span, start_trace_span
 from src.progress_store import finish_stage, start_stage
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
@@ -20,12 +19,15 @@ def _timed(stage: str, func):
     def wrapped(state: ReviewState):
         review_id = str(state.get("review_id", "") or "")
         start_stage(review_id, stage)
+        span = start_trace_span(review_id=review_id, stage=stage)
         try:
             result = func(state)
-        except Exception:
+        except Exception as exc:
             finish_stage(review_id, stage, status="error")
+            finish_trace_span(span, status="error", error=str(exc))
             raise
         finish_stage(review_id, stage, status="done")
+        finish_trace_span(span, status="done")
         return result
 
     wrapped.__name__ = f"timed_{stage}"
@@ -53,22 +55,17 @@ def route_after_task_profile(state: ReviewState) -> str:
 def route_after_reference(state: ReviewState) -> str:
     if not state.get("reference_verification_ok", False):
         return "review"
-    # By project scope we do not inspect or score the student's drawn trig circle.
-    # Part б is checked from the confirmed written solution and selected roots.
+    # Student trig-circle drawings are outside the current MVP.
     return "grade"
 
 
 def route_after_diagram_verify(state: ReviewState) -> str:
+    """Legacy compatibility helper. Diagram nodes are not part of the active graph."""
     return "grade"
 
 
 def _wire_tail(graph: StateGraph) -> None:
     graph.add_node("verify_reference", _timed("verify_reference", reference_verifier_agent))
-    # Compatibility nodes are kept, but the active graph no longer routes into them.
-    graph.add_node("diagram_vision", _timed("diagram_vision", diagram_vision_node))
-    graph.add_node("diagram_verify", _timed("diagram_verify", diagram_verifier_node))
-    graph.add_node("diagram_reinspect", _timed("diagram_reinspect", diagram_reinspect_node))
-    graph.add_node("diagram_final_verify", _timed("diagram_final_verify", diagram_final_verifier_node))
     graph.add_node("grader", _timed("grader", grader_agent))
     graph.add_node("reviewer", _timed("reviewer", reviewer_agent))
     graph.add_node("build_report", _timed("build_report", build_user_report_node))
