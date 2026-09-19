@@ -72,9 +72,6 @@ def _detect_suspicious_ocr_fragments(transcript: str) -> list[str]:
         elif "�" in inner:
             found.append(match.group(0))
 
-    # Handwritten Russian is sometimes hallucinated as latin transliteration
-    # (for example "zto ... tog ..."). Do not auto-correct it: just make the
-    # fragment visible to the human before grading.
     allowed_latin = {
         "sin", "cos", "tan", "tg", "ctg", "sqrt", "frac", "pi", "text",
         "begin", "end", "cases", "quad", "qquad", "mathbb", "left", "right",
@@ -178,9 +175,9 @@ def vision_agent(state: ReviewState) -> dict:
 Skill:
 {skill}
 
-Верни ТОЛЬКО один JSON-объект:
+Верни ТОЛЬКО один компактный JSON-объект:
 {{
-  "task_statement_latex": "точная транскрипция видимого условия задания, включая а), б), уравнение и интервал",
+  "task_statement_latex": "точная транскрипция видимого условия, включая а), б), уравнение и интервал",
   "student_transcript_latex": "только решение ученика, без повторения условия",
   "steps": [],
   "confidence": 0.0,
@@ -191,22 +188,30 @@ Skill:
 
 Правила:
 - Условие и решение перепиши ОДИН РАЗ и раздели между двумя полями.
+- Не повторяй уже переписанные строки и не добавляй рассуждений от себя.
 - `steps` всегда []; шаги строит Python локально после OCR.
 - В `task_statement_latex` помещай только реально видимое условие; не восстанавливай его по памяти.
 - В `student_transcript_latex` помещай только реально написанное учеником решение, сверху вниз.
 - Русские слова переписывай кириллицей. Не превращай рукописный русский текст в латинскую транслитерацию.
 - Если слово или фраза неразборчивы, не придумывай их: сохрани максимально буквальный фрагмент и добавь его в `uncertain_fragments`.
 - Если граница между условием и решением неоднозначна, сохрани видимый текст максимально буквально и отметь сомнение.
-- Не добавляй объяснений от себя и не исправляй математику ученика.
+- Не исправляй математику ученика и не дописывай пропущенные шаги.
 - Не исправляй опечатки/ошибки в самом условии — транскрибируй как видно.
 - Используй компактный LaTeX без декоративной разметки и без повторов.
-- Не описывай рисунок словами; перепиши только реально видимые подписи/формулы.
-- Строку `Ответ:` перепиши буквально в решение. Не подменяй её правильным ответом.
+- Не описывай рисунок или тригонометрическую окружность словами; перепиши только реально видимые рядом подписи/формулы.
+- Строку `Ответ:` перепиши буквально. Не подменяй её правильным ответом.
 - `uncertain_fragments` и `task_uncertain_fragments`: максимум по 6 коротких мест.
 - Если условие не видно на фотографии, верни `task_statement_latex` = ""; человек заполнит поле вручную.
 """.strip()
 
     vision_ctx = int(os.getenv("OLLAMA_VISION_NUM_CTX", "16384"))
+    # The old unbounded generation could run for 15 minutes while repeating OCR.
+    # 2048 output tokens is deliberately generous for the EGE-13 handwritten
+    # solutions in this project, while preventing runaway generation. If the
+    # model still hits this ceiling and returns incomplete JSON, the call fails
+    # explicitly and the product falls back to human confirmation; it is never
+    # silently accepted as a complete transcript.
+    vision_num_predict = int(os.getenv("OLLAMA_VISION_NUM_PREDICT", "2048"))
     try:
         result = ollama_chat_json(
             system_prompt=system_prompt,
@@ -214,7 +219,8 @@ Skill:
             image_b64=image_b64,
             response_schema=None,
             num_ctx=vision_ctx,
-            use_num_predict_limit=False,
+            num_predict=vision_num_predict,
+            use_num_predict_limit=True,
         )
     except OllamaError as exc:
         telemetry = getattr(exc, "telemetry", {}) or {}
