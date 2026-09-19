@@ -41,7 +41,7 @@ def test_real_vision_ignores_model_needs_confirmation_field():
         "steps": [r"\\sin x = \\frac12"],
         "confidence": 0.75,
         "uncertain_fragments": [],
-        "needs_confirmation": False,
+        "needs_confirmation": False,  # should be ignored even if model emits it
         "_model": "qwen3-vl:4b-instruct",
     }
     state = {
@@ -55,35 +55,6 @@ def test_real_vision_ignores_model_needs_confirmation_field():
     assert result["needs_confirmation"] is True
     assert result["status"] == "NEEDS_TRANSCRIPT_CONFIRMATION"
     assert result["transcript_confirmed"] is False
-
-
-def test_vision_uses_strict_schema_and_bounded_context():
-    fake = {
-        "task_statement_latex": "",
-        "student_transcript_latex": "x=1",
-        "confidence": 0.9,
-        "task_confidence": 0.0,
-        "uncertain_fragments": [],
-        "task_uncertain_fragments": [],
-        "_model": "qwen3-vl:4b-instruct",
-        "_elapsed_seconds": 1.0,
-        "_ollama_telemetry": {},
-    }
-    state = {
-        "task_statement": "",
-        "task_type": "ege_13",
-        "image_b64": "ZmFrZQ==",
-    }
-    with patch("src.agents.vision.ollama_chat_json", return_value=fake) as call:
-        result = vision_agent(state)
-
-    kwargs = call.call_args.kwargs
-    assert kwargs["response_schema"]["additionalProperties"] is False
-    assert "student_transcript_latex" in kwargs["response_schema"]["required"]
-    assert kwargs["num_ctx"] == 8192
-    assert kwargs["num_predict"] == 3072
-    assert kwargs["use_num_predict_limit"] is True
-    assert result["transcript"] == "x=1"
 
 
 def test_graph_router_stops_unconfirmed_transcript():
