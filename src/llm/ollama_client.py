@@ -13,12 +13,7 @@ from src.observability.runtime import log_llm_call
 
 
 class OllamaError(RuntimeError):
-    """Structured failure from the local Ollama runtime.
-
-    The client always preserves telemetry on failures.  In particular, timeout
-    errors carry elapsed time and partial streaming progress, so the API never
-    reports a misleading ``0 seconds`` failure.
-    """
+    """Structured failure from the local Ollama runtime."""
 
     def __init__(
         self,
@@ -85,6 +80,7 @@ def _telemetry_from_raw(
     output_chars: int = 0,
     total_deadline_seconds: int | None = None,
     idle_timeout_seconds: int | None = None,
+    first_chunk_timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     prompt_count = raw.get("prompt_eval_count")
     prompt_duration = raw.get("prompt_eval_duration")
@@ -107,11 +103,12 @@ def _telemetry_from_raw(
         "num_ctx": num_ctx,
         "num_predict": num_predict if custom_output_cap else None,
         "custom_output_cap": custom_output_cap,
-        "transport_mode": "ndjson-stream-idle-timeout-emergency-ceiling",
+        "transport_mode": "ndjson-stream-first-chunk-idle-total-deadline",
         "chunks_received": chunks_received,
         "partial_output_chars": output_chars,
         "total_deadline_seconds": total_deadline_seconds,
         "idle_timeout_seconds": idle_timeout_seconds,
+        "first_chunk_timeout_seconds": first_chunk_timeout_seconds,
     }
 
 
@@ -120,17 +117,11 @@ def _open_streaming_post(
     url: str,
     payload: dict[str, Any],
     connect_timeout_seconds: int,
-    idle_timeout_seconds: int,
+    first_chunk_timeout_seconds: int,
     total_deadline_seconds: float,
     started: float,
 ):
-    """Open Ollama's NDJSON stream with separate connect/read deadlines.
-
-    ``http.client`` is used intentionally here instead of treating one timeout
-    value as connect + read + whole-agent runtime.  The socket timeout protects
-    against an actually stalled Ollama process, while the wall-clock deadline
-    prevents a stream that keeps dribbling tokens from running forever.
-    """
+    """Open Ollama's NDJSON stream with separate connection/initial deadlines."""
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in {"http", "https"}:
         raise OllamaError(
@@ -156,7 +147,7 @@ def _open_streaming_post(
         if remaining <= 0:
             raise TimeoutError("total deadline reached before response")
         if conn.sock is not None:
-            conn.sock.settimeout(min(float(idle_timeout_seconds), max(0.1, remaining)))
+            conn.sock.settimeout(min(float(first_chunk_timeout_seconds), max(0.1, remaining)))
         response = conn.getresponse()
         return conn, response
     except Exception:
@@ -178,19 +169,14 @@ def ollama_chat_json(
 ) -> dict[str, Any]:
     """Call local Ollama with bounded NDJSON streaming.
 
-    Reliability rules:
-    - Vision still receives the original image and has no application output cap.
-    - Streaming prevents a healthy long generation from looking like a dead HTTP
-      request merely because the final JSON is not ready yet.
-    - An *idle* timeout detects a genuinely stalled socket.
-    - A high emergency wall-clock ceiling prevents a truly runaway generation from
-      living forever, but it is deliberately far above normal local latency.
-      Active healthy generation is governed by the idle timeout, not by a short
-      request deadline.
+    There are three different limits on purpose:
+    - connect timeout: Ollama itself is unreachable;
+    - first-chunk timeout: model load + image/prompt evaluation before generation;
+    - idle timeout: generation started but stopped producing stream data.
 
-    The legacy ``OLLAMA_TIMEOUT_SECONDS`` environment variable is deliberately
-    not used.  This avoids stale shell values silently changing all agents.  Use
-    the explicit variables documented in ``.env.example`` instead.
+    The first-chunk timeout is longer for Vision because image encoding/prompt
+    evaluation can legitimately take much longer than the gap between generated
+    tokens. A separate high wall-clock deadline remains an emergency ceiling.
     """
     base_url = get_ollama_base_url()
     model_name = model or get_vision_model()
@@ -198,6 +184,10 @@ def ollama_chat_json(
 
     connect_timeout = _env_positive_int("OLLAMA_CONNECT_TIMEOUT_SECONDS", 15)
     idle_timeout = _env_positive_int("OLLAMA_IDLE_TIMEOUT_SECONDS", 180)
+    first_chunk_timeout = _env_positive_int(
+        "OLLAMA_VISION_FIRST_CHUNK_TIMEOUT_SECONDS" if has_image else "OLLAMA_TEXT_FIRST_CHUNK_TIMEOUT_SECONDS",
+        300 if has_image else 120,
+    )
     default_total = 900
     total_env = "OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS" if has_image else "OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS"
     total_deadline = float(timeout) if timeout is not None else float(_env_positive_int(total_env, default_total))
@@ -255,11 +245,12 @@ def ollama_chat_json(
             "num_ctx": num_ctx,
             "num_predict": effective_num_predict if custom_output_cap else None,
             "custom_output_cap": custom_output_cap,
-            "transport_mode": "ndjson-stream-idle-timeout-emergency-ceiling",
+            "transport_mode": "ndjson-stream-first-chunk-idle-total-deadline",
             "chunks_received": chunks_received,
             "partial_output_chars": sum(len(x) for x in content_parts),
             "total_deadline_seconds": total_deadline,
             "idle_timeout_seconds": idle_timeout,
+            "first_chunk_timeout_seconds": first_chunk_timeout,
         }
 
     conn: http.client.HTTPConnection | http.client.HTTPSConnection | None = None
@@ -268,7 +259,7 @@ def ollama_chat_json(
             url=f"{base_url}/api/chat",
             payload=payload,
             connect_timeout_seconds=connect_timeout,
-            idle_timeout_seconds=idle_timeout,
+            first_chunk_timeout_seconds=first_chunk_timeout,
             total_deadline_seconds=total_deadline,
             started=started,
         )
@@ -294,8 +285,9 @@ def ollama_chat_json(
                     code="OLLAMA_TOTAL_DEADLINE",
                 )
 
+            read_timeout = first_chunk_timeout if chunks_received == 0 else idle_timeout
             if conn.sock is not None:
-                conn.sock.settimeout(min(float(idle_timeout), max(0.1, remaining)))
+                conn.sock.settimeout(min(float(read_timeout), max(0.1, remaining)))
 
             raw_line = response.readline()
             if not raw_line:
@@ -336,8 +328,6 @@ def ollama_chat_json(
     except (socket.timeout, TimeoutError) as exc:
         t = partial_telemetry()
         elapsed = float(t.get("wall_seconds") or 0)
-        # If the hard wall-clock deadline is already exhausted, report that
-        # rather than calling a healthy-but-slow stream an idle failure.
         if elapsed >= total_deadline - 0.05:
             raise OllamaError(
                 "OLLAMA_TOTAL_DEADLINE: локальная модель превысила защитный "
@@ -346,8 +336,15 @@ def ollama_chat_json(
                 telemetry=t,
                 code="OLLAMA_TOTAL_DEADLINE",
             ) from exc
+        if chunks_received == 0:
+            raise OllamaError(
+                "OLLAMA_FIRST_CHUNK_TIMEOUT: модель не начала отдавать ответ за "
+                f"{first_chunk_timeout} с. Это время включает загрузку модели и обработку изображения/промпта.",
+                telemetry=t,
+                code="OLLAMA_FIRST_CHUNK_TIMEOUT",
+            ) from exc
         raise OllamaError(
-            "OLLAMA_IDLE_TIMEOUT: поток от локальной Ollama перестал давать данные "
+            "OLLAMA_IDLE_TIMEOUT: начавшийся поток Ollama перестал давать данные "
             f"на {idle_timeout} с. Получено chunks={t['chunks_received']}, "
             f"chars={t['partial_output_chars']}, elapsed={t['wall_seconds']} с.",
             telemetry=t,
@@ -383,12 +380,20 @@ def ollama_chat_json(
         output_chars=sum(len(x) for x in content_parts),
         total_deadline_seconds=total_deadline,
         idle_timeout_seconds=idle_timeout,
+        first_chunk_timeout_seconds=first_chunk_timeout,
     )
 
     try:
         log_llm_call(telemetry)
     except Exception:
         pass
+
+    if custom_output_cap and str(final_raw.get("done_reason", "")).lower() in {"length", "max_tokens"}:
+        raise OllamaError(
+            "OLLAMA_OUTPUT_LIMIT: модель достигла лимита выходных токенов до естественного завершения ответа.",
+            telemetry=telemetry,
+            code="OLLAMA_OUTPUT_LIMIT",
+        )
 
     content = "".join(content_parts)
     if not content:
