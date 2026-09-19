@@ -97,8 +97,6 @@ def _extract_chained_interval(text: str) -> tuple[str, str]:
             in_part_b = True
 
         candidate_line = _strip_part_b_prefix(line)
-        # Exactly two or more chained <= relations.  The middle expression may
-        # be x itself or a substituted general-solution family.
         parts = [part.strip() for part in re.split(r"\s*≤\s*", candidate_line)]
         if len(parts) < 3:
             continue
@@ -122,8 +120,6 @@ def _extract_chained_interval(text: str) -> tuple[str, str]:
             score += 3
         if re.search(r"\s+(?:/|:|\|)\s*:?\s*(?:π|pi)\s*$", parts[2], flags=re.IGNORECASE):
             score += 2
-        # After dividing by π, neither boundary nor the middle normally contains
-        # an angle unit. Such rows are useful algebra but weak interval evidence.
         if not (_contains_pi(left) or _contains_pi(right) or _contains_pi(middle)):
             score -= 8
 
@@ -132,8 +128,6 @@ def _extract_chained_interval(text: str) -> tuple[str, str]:
     if not candidates:
         return "", "empty"
 
-    # The original task bounds are commonly reused for two/three solution
-    # families. Repetition is strong evidence and works independently of values.
     pair_counts: dict[tuple[str, str], int] = {}
     for item in candidates:
         key = (re.sub(r"\s+", "", item.left), re.sub(r"\s+", "", item.right))
@@ -145,8 +139,6 @@ def _extract_chained_interval(text: str) -> tuple[str, str]:
         return item.score + repetition_bonus, -item.index
 
     best = max(candidates, key=rank)
-    # Require actual angle-scale evidence. This avoids converting a transformed
-    # inequality like ``-6 ≤ 1+2n ≤ -3`` into a fake x-interval.
     if not (
         _contains_pi(best.left)
         or _contains_pi(best.right)
@@ -175,8 +167,6 @@ def extract_task_equation_draft(transcript: str, detected_statement: str = "") -
         if any(token in lower for token in ("sin", "cos", "tg", "tan", r"\sin", r"\cos")):
             return candidate, "student_leading_equation"
 
-    # Backward-compatible fallback: if Vision really saw an explicit printed
-    # task statement, use its first equation only.
     for line in _normalized_lines(detected_statement)[:8]:
         candidate = _strip_solution_prefix(line)
         if "=" in candidate:
@@ -186,17 +176,7 @@ def extract_task_equation_draft(transcript: str, detected_statement: str = "") -
 
 
 def extract_interval_draft(transcript: str, detected_statement: str = "") -> tuple[str, str]:
-    """Extract visible interval evidence; never infer it from roots/reference.
-
-    Priority:
-    1. literal interval notation ``[a; b]`` visible anywhere;
-    2. visible part-b selection inequality ``a <= family <= b``;
-    3. legacy ``a <= x <= b`` (covered by 2 as well).
-
-    The second form matters for handwritten EGE-13 work: a student can omit the
-    standalone interval line in OCR while the same bounds remain visibly written
-    in each root-selection inequality.
-    """
+    """Extract visible interval evidence; never infer it from roots/reference."""
     combined = "\n".join([str(transcript or ""), str(detected_statement or "")])
     normalized = _normalize_inequality_text(combined)
 
@@ -235,6 +215,17 @@ def build_ege13_task_statement(equation: str, interval: str) -> str:
     )
 
 
+def _has_ambiguous_trig_argument(equation: str) -> bool:
+    """Catch OCR/user text like ``sin x (x+π)`` before it reaches SymPy.
+
+    Such text is ambiguous: it may mean ``sin(x+π)`` or the product
+    ``sin(x) * (x+π)``.  For EGE-13 we require the user to make that explicit.
+    """
+    text = str(equation or "")
+    trig = r"(?:\\?(?:sin|cos|tan|tg|ctg|cot))"
+    return bool(re.search(rf"{trig}\s*x\s*\(", text, flags=re.IGNORECASE))
+
+
 def validate_task_fields(task_type: str, equation: str, interval: str) -> list[str]:
     if str(task_type or "").strip().lower() != "ege_13":
         return []
@@ -245,6 +236,8 @@ def validate_task_fields(task_type: str, equation: str, interval: str) -> list[s
         issues.append("task_equation_empty")
     elif "=" not in eq:
         issues.append("task_equation_missing_equals")
+    elif _has_ambiguous_trig_argument(eq):
+        issues.append("task_equation_ambiguous_trig_argument")
     if not iv:
         issues.append("part_b_interval_missing")
     elif not re.fullmatch(r"[\[(]\s*[^\]\)\n;]+?\s*;\s*[^\]\)\n;]+?\s*[\])]", iv):
@@ -256,6 +249,11 @@ def task_fields_issue_message(issues: list[str]) -> str:
     labels = {
         "task_equation_empty": "не найдено исходное уравнение",
         "task_equation_missing_equals": "в исходном уравнении нет знака =",
+        "task_equation_ambiguous_trig_argument": (
+            "неоднозначно записан аргумент тригонометрической функции: "
+            "например, вместо sin x (x+π) укажи sin(x+π), "
+            "а если это умножение — sin x · (x+π)"
+        ),
         "part_b_interval_missing": "не указан интервал пункта б",
         "part_b_interval_invalid": "интервал пункта б должен быть записан через ;, например [-3π; -3π/2]",
     }
