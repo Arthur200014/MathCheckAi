@@ -1,0 +1,117 @@
+{
+  "source_pdf": "sources/ЕГЭ_13_критерии_решения_сканы.pdf",
+  "note": "12 balanced expert-labelled EGE-13 cases: 4 score=2, 4 score=1, 4 score=0. Crop boxes are normalized [left, top, right, bottom] and intentionally exclude the printed official answer and expert comment. Generated images stay in local_eval_data/ and are gitignored.",
+  "cases": [
+    {
+      "id": "13.1.1",
+      "expert_score": 2,
+      "expert_summary": "Обоснованно получены верные ответы в обоих пунктах.",
+      "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
+      "interval": "[-3π; -3π/2]",
+      "pages": [{"page": 10, "crop": [0.03, 0.17, 0.97, 0.68]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.1.2",
+      "expert_score": 1,
+      "expert_summary": "Пункт а верен; в отборе по окружности допущены ошибки, пункт б не выполнен.",
+      "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
+      "interval": "[-3π; -3π/2]",
+      "pages": [{"page": 11, "crop": [0.03, 0.17, 0.97, 0.72]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.1.4",
+      "expert_score": 0,
+      "expert_summary": "Неверно решено простейшее тригонометрическое уравнение sin x = 1.",
+      "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
+      "interval": "[-3π; -3π/2]",
+      "pages": [{"page": 13, "crop": [0.03, 0.17, 0.97, 0.82]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.2.1",
+      "expert_score": 2,
+      "expert_summary": "Обоснованно получены верные ответы в обоих пунктах.",
+      "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
+      "interval": "[-7π/2; -2π]",
+      "pages": [{"page": 14, "crop": [0.03, 0.17, 0.97, 0.76]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.2.2",
+      "expert_score": 1,
+      "expert_summary": "Пункт а верен; ошибка при выборе целого параметра в пункте б.",
+      "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
+      "interval": "[-7π/2; -2π]",
+      "pages": [
+        {"page": 15, "crop": [0.03, 0.16, 0.97, 0.73]},
+        {"page": 16, "crop": [0.03, 0.02, 0.97, 0.69]}
+      ],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.2.4",
+      "expert_score": 0,
+      "expert_summary": "Неверно решено простейшее тригонометрическое уравнение sin x = √2/2.",
+      "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
+      "interval": "[-7π/2; -2π]",
+      "pages": [{"page": 18, "crop": [0.03, 0.17, 0.97, 0.48]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.3.1",
+      "expert_score": 2,
+      "expert_summary": "Обоснованно получены верные ответы в обоих пунктах.",
+      "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
+      "interval": "[3π/2; 3π]",
+      "pages": [{"page": 19, "crop": [0.03, 0.17, 0.97, 0.74]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.3.2",
+      "expert_score": 1,
+      "expert_summary": "Пункт а верен; ошибка при нахождении целого параметра в пункте б.",
+      "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
+      "interval": "[3π/2; 3π]",
+      "pages": [{"page": 20, "crop": [0.03, 0.17, 0.97, 0.79]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.3.4",
+      "expert_score": 0,
+      "expert_summary": "Неверно решены простейшие тригонометрические уравнения sin x = ±1.",
+      "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
+      "interval": "[3π/2; 3π]",
+      "pages": [{"page": 22, "crop": [0.03, 0.17, 0.97, 0.79]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.4.1",
+      "expert_score": 2,
+      "expert_summary": "Обоснованно получены верные ответы в обоих пунктах.",
+      "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
+      "interval": "[2π; 7π/2]",
+      "pages": [{"page": 23, "crop": [0.03, 0.17, 0.97, 0.59]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.4.3",
+      "expert_score": 1,
+      "expert_summary": "Пункт а верен; на дуге указан корень вне заданного отрезка, пункт б не выполнен.",
+      "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
+      "interval": "[2π; 7π/2]",
+      "pages": [{"page": 25, "crop": [0.03, 0.17, 0.97, 0.65]}],
+      "manual_transcript": ""
+    },
+    {
+      "id": "13.4.4",
+      "expert_score": 0,
+      "expert_summary": "Неверное разложение на множители в пункте а.",
+      "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
+      "interval": "[2π; 7π/2]",
+      "pages": [{"page": 26, "crop": [0.03, 0.17, 0.97, 0.83]}],
+      "manual_transcript": ""
+    }
+  ]
+}
