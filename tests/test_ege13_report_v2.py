@@ -1,4 +1,4 @@
-from src.tools.ege13_report_v2 import build_compact_report_node
+from src.tools.ege13_report_v3 import build_compact_report_node
 
 
 def _state():
