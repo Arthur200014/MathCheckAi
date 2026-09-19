@@ -4,6 +4,11 @@ The repository keeps the official/expert source PDF, but benchmark images must
 NOT contain the printed official answer or the expert comment because that would
 leak the ground truth to Vision. Crop boxes live in benchmark_cases.json.
 
+The source PDF has a selectable text layer for the printed labels ``Ответ:`` and
+``Комментарий.``.  The handwritten solution is an image.  We therefore use the
+case crop as a coarse box and then automatically trim those printed regions out
+using the PDF text layer.  This is safer than relying on hand-picked Y values.
+
 Usage:
     pip install -r requirements-eval.txt
     python evals/prepare_ege13_images.py
@@ -46,6 +51,43 @@ def _clip_from_normalized(page: fitz.Page, crop: list[float]) -> fitz.Rect:
     )
 
 
+def _trim_printed_ground_truth(page: fitz.Page, clip: fitz.Rect) -> tuple[fitz.Rect, list[str]]:
+    """Remove printed answer/header and expert comment from a coarse crop.
+
+    Only searchable PDF text is used for the trimming decision.  Handwritten
+    content is never OCRed or interpreted here.
+    """
+    out = fitz.Rect(clip)
+    notes: list[str] = []
+    margin = 8.0
+
+    answer_hits = page.search_for("Ответ:")
+    for hit in answer_hits:
+        if hit.y1 <= out.y0 or hit.y0 >= out.y1:
+            continue
+        # In this source the printed official answer is the line immediately
+        # above the handwritten work.  Start below the whole printed line.
+        new_top = min(out.y1 - 1.0, hit.y1 + margin)
+        if new_top > out.y0:
+            out.y0 = new_top
+            notes.append(f"answer_trim_to_y={new_top:.1f}")
+        break
+
+    comment_hits = page.search_for("Комментарий.") + page.search_for("Комментарий:")
+    for hit in sorted(comment_hits, key=lambda r: r.y0):
+        if hit.y1 <= out.y0 or hit.y0 >= out.y1:
+            continue
+        new_bottom = max(out.y0 + 1.0, hit.y0 - margin)
+        if new_bottom < out.y1:
+            out.y1 = new_bottom
+            notes.append(f"comment_trim_to_y={new_bottom:.1f}")
+        break
+
+    if out.height < 20 or out.width < 20:
+        raise ValueError(f"автообрезка дала слишком маленький crop: {out}")
+    return out, notes
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cases", type=Path, default=DEFAULT_CASES)
@@ -65,17 +107,21 @@ def main() -> None:
         for case in data["cases"]:
             case_id = str(case["id"])
             images: list[str] = []
+            trim_log: list[dict] = []
             for index, page_spec in enumerate(case.get("pages", []), start=1):
                 page_number = int(page_spec["page"])
                 if page_number < 1 or page_number > len(doc):
                     raise SystemExit(f"{case_id}: страницы {page_number} нет в PDF")
                 page = doc[page_number - 1]
-                clip = _clip_from_normalized(page, page_spec["crop"])
+                coarse = _clip_from_normalized(page, page_spec["crop"])
+                clip, trim_notes = _trim_printed_ground_truth(page, coarse)
                 pix = page.get_pixmap(dpi=args.dpi, clip=clip, alpha=False)
                 out = args.output / f"{case_id}_p{index}.png"
                 pix.save(str(out))
                 images.append(out.name)
-                print(f"{case_id}: {page_number} -> {out.relative_to(ROOT)}")
+                trim_log.append({"page": page_number, "notes": trim_notes})
+                suffix = f" ({', '.join(trim_notes)})" if trim_notes else ""
+                print(f"{case_id}: {page_number} -> {out.relative_to(ROOT)}{suffix}")
 
             manifest.append(
                 {
@@ -84,6 +130,7 @@ def main() -> None:
                     "task_equation": case.get("task_equation", ""),
                     "interval": case.get("interval", ""),
                     "images": images,
+                    "trim_log": trim_log,
                 }
             )
 
