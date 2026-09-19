@@ -1,6 +1,11 @@
+name: mathcheck
+
 services:
-  agent-app:
-    build: .
+  mathcheck:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mathcheck
     ports:
       - "8000:8000"
     environment:
@@ -13,6 +18,10 @@ services:
       OLLAMA_IDLE_TIMEOUT_SECONDS: ${OLLAMA_IDLE_TIMEOUT_SECONDS:-180}
       OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS: ${OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS:-900}
       OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS: ${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS:-300}
+      MATHCHECK_OBS_DIR: /app/observability
+      MATHCHECK_SLOW_AGENT_SECONDS: ${MATHCHECK_SLOW_AGENT_SECONDS:-120}
     volumes:
       - ./data:/app/data
       - ./reports:/app/reports
+      - ./observability:/app/observability
+    restart: unless-stopped
