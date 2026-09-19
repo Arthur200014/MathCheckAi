@@ -66,4 +66,4 @@ def test_api_confirmation_promotes_human_confirmed_task_statement_to_authoritati
     assert '"task_statement": confirmed_statement' in source
     assert '"confirmed_task_statement": confirmed_statement' in source
     assert '"task_statement_confirmation_source": "human"' in source
-    assert '"single_photo_extracts_task_and_solution": True' in source
+    assert '"single_photo_extracts_student_work": True' in source
