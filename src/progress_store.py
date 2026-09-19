@@ -81,7 +81,9 @@ def progress_snapshot(review_id: str) -> dict:
                 started = float(copy.get("started_at") or now)
                 copy["elapsed_seconds"] = round(max(0.0, now - started), 2)
             stages.append(copy)
-        total = round(max(0.0, now - float(item.get("started_at") or now)), 2)
+        # Sum only real processing stages. Human editing time between Vision and
+        # the confirmation click must not inflate the performance numbers.
+        total = round(sum(float(row.get("elapsed_seconds") or 0.0) for row in stages), 2)
         return {
             "review_id": review_id,
             "current_stage": item.get("current_stage", ""),
