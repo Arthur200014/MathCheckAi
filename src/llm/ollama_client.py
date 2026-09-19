@@ -15,7 +15,7 @@ from src.observability.runtime import log_llm_call
 class OllamaError(RuntimeError):
     """Structured failure from the local Ollama runtime.
 
-    The client always preserves telemetry on failures.  In particular, timeout
+    The client always preserves telemetry on failures. In particular, timeout
     errors carry elapsed time and partial streaming progress, so the API never
     reports a misleading ``0 seconds`` failure.
     """
@@ -107,7 +107,7 @@ def _telemetry_from_raw(
         "num_ctx": num_ctx,
         "num_predict": num_predict if custom_output_cap else None,
         "custom_output_cap": custom_output_cap,
-        "transport_mode": "ndjson-stream-idle-timeout-emergency-ceiling",
+        "transport_mode": "ndjson-stream-prefill-total-deadline-then-idle-timeout",
         "chunks_received": chunks_received,
         "partial_output_chars": output_chars,
         "total_deadline_seconds": total_deadline_seconds,
@@ -120,16 +120,15 @@ def _open_streaming_post(
     url: str,
     payload: dict[str, Any],
     connect_timeout_seconds: int,
-    idle_timeout_seconds: int,
     total_deadline_seconds: float,
     started: float,
 ):
-    """Open Ollama's NDJSON stream with separate connect/read deadlines.
+    """Open Ollama's NDJSON stream with separate connect and runtime deadlines.
 
-    ``http.client`` is used intentionally here instead of treating one timeout
-    value as connect + read + whole-agent runtime.  The socket timeout protects
-    against an actually stalled Ollama process, while the wall-clock deadline
-    prevents a stream that keeps dribbling tokens from running forever.
+    Vision can spend a long time encoding/prefilling an image before the first
+    streamed token exists. That phase is bounded by the total request deadline,
+    not by the token-to-token idle timeout. The idle timeout starts only after
+    streaming has actually begun.
     """
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in {"http", "https"}:
@@ -156,7 +155,7 @@ def _open_streaming_post(
         if remaining <= 0:
             raise TimeoutError("total deadline reached before response")
         if conn.sock is not None:
-            conn.sock.settimeout(min(float(idle_timeout_seconds), max(0.1, remaining)))
+            conn.sock.settimeout(max(0.1, remaining))
         response = conn.getresponse()
         return conn, response
     except Exception:
@@ -179,18 +178,13 @@ def ollama_chat_json(
     """Call local Ollama with bounded NDJSON streaming.
 
     Reliability rules:
-    - Vision still receives the original image and has no application output cap.
-    - Streaming prevents a healthy long generation from looking like a dead HTTP
-      request merely because the final JSON is not ready yet.
-    - An *idle* timeout detects a genuinely stalled socket.
-    - A high emergency wall-clock ceiling prevents a truly runaway generation from
-      living forever, but it is deliberately far above normal local latency.
-      Active healthy generation is governed by the idle timeout, not by a short
-      request deadline.
-
-    The legacy ``OLLAMA_TIMEOUT_SECONDS`` environment variable is deliberately
-    not used.  This avoids stale shell values silently changing all agents.  Use
-    the explicit variables documented in ``.env.example`` instead.
+    - connection establishment has a short dedicated timeout;
+    - image encoding/prefill may legitimately be slow and is bounded by the
+      overall request deadline;
+    - once the first stream chunk arrives, token-to-token stalls are bounded by
+      the idle timeout;
+    - a wall-clock ceiling still prevents a runaway generation from living
+      forever.
     """
     base_url = get_ollama_base_url()
     model_name = model or get_vision_model()
@@ -255,7 +249,7 @@ def ollama_chat_json(
             "num_ctx": num_ctx,
             "num_predict": effective_num_predict if custom_output_cap else None,
             "custom_output_cap": custom_output_cap,
-            "transport_mode": "ndjson-stream-idle-timeout-emergency-ceiling",
+            "transport_mode": "ndjson-stream-prefill-total-deadline-then-idle-timeout",
             "chunks_received": chunks_received,
             "partial_output_chars": sum(len(x) for x in content_parts),
             "total_deadline_seconds": total_deadline,
@@ -268,7 +262,6 @@ def ollama_chat_json(
             url=f"{base_url}/api/chat",
             payload=payload,
             connect_timeout_seconds=connect_timeout,
-            idle_timeout_seconds=idle_timeout,
             total_deadline_seconds=total_deadline,
             started=started,
         )
@@ -295,7 +288,12 @@ def ollama_chat_json(
                 )
 
             if conn.sock is not None:
-                conn.sock.settimeout(min(float(idle_timeout), max(0.1, remaining)))
+                # Before the first chunk the model is still encoding/prefilling
+                # the request. That is not a stream stall, so only the total
+                # request deadline applies. After streaming starts, the normal
+                # token-to-token idle timeout applies.
+                read_timeout = remaining if chunks_received == 0 else min(float(idle_timeout), remaining)
+                conn.sock.settimeout(max(0.1, read_timeout))
 
             raw_line = response.readline()
             if not raw_line:
@@ -336,8 +334,6 @@ def ollama_chat_json(
     except (socket.timeout, TimeoutError) as exc:
         t = partial_telemetry()
         elapsed = float(t.get("wall_seconds") or 0)
-        # If the hard wall-clock deadline is already exhausted, report that
-        # rather than calling a healthy-but-slow stream an idle failure.
         if elapsed >= total_deadline - 0.05:
             raise OllamaError(
                 "OLLAMA_TOTAL_DEADLINE: локальная модель превысила защитный "
@@ -346,9 +342,10 @@ def ollama_chat_json(
                 telemetry=t,
                 code="OLLAMA_TOTAL_DEADLINE",
             ) from exc
+        phase = "prefill" if int(t.get("chunks_received") or 0) == 0 else "stream"
         raise OllamaError(
-            "OLLAMA_IDLE_TIMEOUT: поток от локальной Ollama перестал давать данные "
-            f"на {idle_timeout} с. Получено chunks={t['chunks_received']}, "
+            "OLLAMA_IDLE_TIMEOUT: локальная Ollama перестала отдавать данные "
+            f"на фазе {phase}. Получено chunks={t['chunks_received']}, "
             f"chars={t['partial_output_chars']}, elapsed={t['wall_seconds']} с.",
             telemetry=t,
             code="OLLAMA_IDLE_TIMEOUT",
