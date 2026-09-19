@@ -71,6 +71,22 @@ def _detect_suspicious_ocr_fragments(transcript: str) -> list[str]:
             found.append(match.group(0))
         elif "�" in inner:
             found.append(match.group(0))
+
+    # Handwritten Russian is sometimes hallucinated as latin transliteration
+    # (for example "zto ... tog ..."). Do not auto-correct it: just make the
+    # fragment visible to the human before grading.
+    allowed_latin = {
+        "sin", "cos", "tan", "tg", "ctg", "sqrt", "frac", "pi", "text",
+        "begin", "end", "cases", "quad", "qquad", "mathbb", "left", "right",
+    }
+    for raw_line in text.splitlines():
+        words = [w.lower() for w in re.findall(r"[A-Za-z]{2,}", raw_line)]
+        weird = [w for w in words if w not in allowed_latin]
+        if len(weird) >= 2:
+            fragment = raw_line.strip()
+            if fragment:
+                found.append(fragment[:180])
+
     if "�" in text and "�" not in found:
         found.append("�")
     out: list[str] = []
@@ -178,6 +194,8 @@ Skill:
 - `steps` всегда []; шаги строит Python локально после OCR.
 - В `task_statement_latex` помещай только реально видимое условие; не восстанавливай его по памяти.
 - В `student_transcript_latex` помещай только реально написанное учеником решение, сверху вниз.
+- Русские слова переписывай кириллицей. Не превращай рукописный русский текст в латинскую транслитерацию.
+- Если слово или фраза неразборчивы, не придумывай их: сохрани максимально буквальный фрагмент и добавь его в `uncertain_fragments`.
 - Если граница между условием и решением неоднозначна, сохрани видимый текст максимально буквально и отметь сомнение.
 - Не добавляй объяснений от себя и не исправляй математику ученика.
 - Не исправляй опечатки/ошибки в самом условии — транскрибируй как видно.
