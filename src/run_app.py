@@ -17,6 +17,9 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
 def _build_web_ui() -> Path:
     source = api.UI_INDEX_PATH.read_text(encoding="utf-8")
 
+    source = source.replace('<title>MathCheck AI — ЕГЭ №13</title>', '<title>MathCheck — ЕГЭ №13</title>', 1)
+    source = source.replace('<h1>MathCheck AI</h1>', '<h1>MathCheck</h1>', 1)
+
     # ID нужен API, но пользователю он не нужен.
     source = _replace_once(
         source,
@@ -34,6 +37,21 @@ def _build_web_ui() -> Path:
     )
 
     source = source.replace('class="version"', 'class="version hidden"', 1)
+
+    # Служебные фрагменты OCR нужны внутри ответа, но пользователю их не показываем.
+    source = _replace_once(
+        source,
+        '<div id="chips" class="chips"></div>',
+        '<div id="chips" class="chips hidden"></div>',
+        "ocr fragments",
+    )
+
+    source = _replace_once(
+        source,
+        '<h2>3. Результат проверки</h2><p>Формулы показываются через LaTeX, а исправление стоит сразу под тем пунктом, к которому относится.</p>',
+        '<h2>3. Результат проверки</h2>',
+        "result subtitle",
+    )
 
     # История остаётся в данных, но на основном экране не показывается.
     source = _replace_once(
@@ -98,7 +116,7 @@ function showSelectedPhotos(files){releasePhotoUrls();st.files=files;st.file=fil
     new_scan = "$('scanBtn').addEventListener('click',async()=>{const files=(st.files&&st.files.length?st.files:[st.file]).filter(Boolean);if(!files.length)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText',files.length===1?'Распознаю работу':`Распознаю ${files.length} фото одним проходом`);try{const fd=new FormData();files.forEach(f=>fd.append('images',f));fd.append('student_id',$('studentId').value.trim()||'student-local');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photos',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
     source = _replace_once(source, old_scan, new_scan, "scan click")
 
-    output = Path(tempfile.gettempdir()) / "mathcheck-ai-index.html"
+    output = Path(tempfile.gettempdir()) / "mathcheck-index.html"
     output.write_text(source, encoding="utf-8")
     return output
 
