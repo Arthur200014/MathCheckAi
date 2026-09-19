@@ -161,8 +161,8 @@ def _telemetry_fields(telemetry: dict[str, Any] | None) -> dict[str, Any]:
 def vision_agent(state: ReviewState) -> dict:
     """One photo, one Vision pass: transcribe task statement and student work.
 
-    Vision is an OCR stage, not a reasoning stage.  The transport owns the JSON
-    structure through Ollama's native schema.  The model only has to fill the
+    Vision is an OCR stage, not a reasoning stage. The transport owns the JSON
+    structure through Ollama's native schema. The model only has to fill the
     transcript fields, which avoids making a long handwritten solution compete
     with hand-written JSON formatting instructions.
     """
@@ -254,8 +254,12 @@ Skill:
             **gate,
         }
 
-    detected_statement = str(result.get("task_statement_latex", "") or "").strip()
-    transcript = str(result.get("student_transcript_latex", "") or "").strip()
+    detected_statement = str(
+        result.get("task_statement_latex", result.get("task_statement", "")) or ""
+    ).strip()
+    transcript = str(
+        result.get("student_transcript_latex", result.get("transcript_latex", "")) or ""
+    ).strip()
 
     confidence = _as_confidence(result.get("confidence", 0.0))
     task_confidence = _as_confidence(result.get("task_confidence", confidence))
