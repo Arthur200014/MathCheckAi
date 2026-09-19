@@ -1,4 +1,6 @@
-from src.tools.ege13_reference import verify_ege13_reference
+import time
+
+from src.tools.ege13_fast_reference import verify_ege13_reference_fast as verify_ege13_reference
 
 
 TASK = "а) Решите уравнение: 2sin(x - π/6) - 2√3 cos(π/2 - x) = 0. б) Найдите все корни этого уравнения, принадлежащие отрезку [-6π; -9π/2]."
@@ -38,8 +40,7 @@ def test_verifier_repairs_wrong_interval_selection_from_solver():
     assert any("outside_interval" in e for e in out.errors)
 
 
-def test_verifier_repairs_wrong_general_family_using_independent_solveset():
-    # Realistic 4B-model algebra slip: tan(x)=-sqrt(3) -> x=-pi/3+pi*n.
+def test_verifier_repairs_wrong_general_family_using_fast_sympy():
     out = verify_ege13_reference(base_spec(family="-pi/3 + pi*n"), task_statement=TASK)
     assert out.ok is True
     assert out.expected_roots == ["-31*pi/6"]
@@ -71,15 +72,17 @@ def test_real_observed_six_wrong_roots_are_ignored():
     assert any(e.startswith("solver_selected_roots_extra:") for e in out.errors)
 
 
-def test_task_statement_without_colon_after_resite_uravnenie_is_parsed():
-    from src.tools.ege13_reference import verify_ege13_reference
-
+def test_task_statement_without_colon_after_resite_uravnenie_is_parsed_fast():
     task_statement = (
         "а) Решите уравнение 1 - cos 2x + √2 sin x = √2 - 2 sin(x + π). "
         "б) Найдите все корни этого уравнения, принадлежащие отрезку [-3π; -3π/2]."
     )
+    started = time.perf_counter()
     result = verify_ege13_reference({}, task_statement=task_statement)
+    elapsed = time.perf_counter() - started
 
     assert result.ok is True
     assert result.expected_roots == ["-11*pi/4", "-9*pi/4", "-3*pi/2"]
-    assert not any("Р" in item or "уравнение" in item.lower() for item in result.results)
+    assert elapsed < 3.0
+    assert any(item.startswith("timing_fast_sympy_seconds:") for item in result.results)
+    assert not any("solveset:" in item for item in result.results)
