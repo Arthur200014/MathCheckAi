@@ -1,6 +1,6 @@
 {
   "source_pdf": "sources/ЕГЭ_13_критерии_решения_сканы.pdf",
-  "note": "12 balanced expert-labelled EGE-13 cases: 4 score=2, 4 score=1, 4 score=0. Crop boxes are normalized [left, top, right, bottom] and intentionally contain only the handwritten student solution: the printed task/official answer above and expert comment/score below are excluded to prevent benchmark leakage. Generated images stay in local_eval_data/ and are gitignored.",
+  "note": "12 balanced expert-labelled EGE-13 cases: 4 score=2, 4 score=1, 4 score=0. Each case stores a human-checked transcript, expert score and expected key points/errors. The benchmark must measure raw Vision against manual_transcript, then continue the downstream pipeline from manual_transcript to reproduce the product's mandatory human-confirmation step. Crop boxes exclude printed official answers and expert comments.",
   "cases": [
     {
       "id": "13.1.1",
@@ -9,7 +9,10 @@
       "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
       "interval": "[-3π; -3π/2]",
       "pages": [{"page": 10, "crop": [0.03, 0.21, 0.97, 0.63]}],
-      "manual_transcript": "а) 1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)\n1 - cos²x + sin²x + √2 sin x = √2 - 2(sin x·cos π + sin π·cos x)\n1 - 1 + 2sin²x + √2 sin x = √2 + 2sin x\n2sin²x + √2 sin x - √2 - 2sin x = 0\n2sin x(sin x - 1) + √2(sin x - 1) = 0\n(2sin x + √2)(sin x - 1) = 0\n2sin x + √2 = 0 или sin x - 1 = 0\nsin x = -√2/2 или sin x = 1\nx = (-1)^k·(-π/4) + πk, k ∈ ℤ\nx = π/2 + 2πn, n ∈ ℤ\nб) найдём корни с помощью тригонометрической окружности\nx₁ = -3π + π/4 = -11π/4\nx₂ = -2π - π/4 = -9π/4\nx₃ = -3π/2"
+      "manual_transcript": "а) 1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)\n1 - cos²x + sin²x + √2 sin x = √2 - 2(sin x·cos π + sin π·cos x)\n1 - 1 + 2sin²x + √2 sin x = √2 + 2sin x\n2sin²x + √2 sin x - √2 - 2sin x = 0\n2sin x(sin x - 1) + √2(sin x - 1) = 0\n(2sin x + √2)(sin x - 1) = 0\n2sin x + √2 = 0 или sin x - 1 = 0\nsin x = -√2/2 или sin x = 1\nx = (-1)^k·(-π/4) + πk, k ∈ ℤ\nx = π/2 + 2πn, n ∈ ℤ\nб) Найдём корни с помощью тригонометрической окружности.\nx₁ = -3π + π/4 = -11π/4\nx₂ = -2π - π/4 = -9π/4\nx₃ = -3π/2",
+      "expected_key_points": ["получены все три серии корней пункта а", "в пункте б отобраны -11π/4, -9π/4, -3π/2"],
+      "expected_errors": [],
+      "expected_manual_review": false
     },
     {
       "id": "13.1.2",
@@ -18,7 +21,10 @@
       "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
       "interval": "[-3π; -3π/2]",
       "pages": [{"page": 11, "crop": [0.03, 0.20, 0.97, 0.69]}],
-      "manual_transcript": ""
+      "manual_transcript": "13. а) 1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)\n1 - (1 - 2sin²x) + √2 sin x = √2 - 2 sin(x+π)\n2sin²x - 2sin x + √2 sin x - √2 = 0\n2sin x(sin x - 1) + √2(sin x - 1) = 0\n(2sin x + √2)(sin x - 1) = 0\n2sin x + √2 = 0 или sin x - 1 = 0\nsin x = -√2/2 или sin x = 1\nx = -π/4 + 2πk, k ∈ ℤ\nx = -3π/4 + 2πk, k ∈ ℤ\nx = π/2 + 2πk, k ∈ ℤ\nб) Проведу отбор корней на отрезке [-3π; -3π/2] с помощью единичной окружности.\nНа окружности нанесены точки (1), (2), (3) и границы; подписи/нумерация точек выполнены с ошибками.\n(1): -π/4 - 2π = -9π/4\n(2): -3π/4 - 2π = -11π/4\n(3): -3π/2\nОтвет: а) π/2 + 2πk; -π/4 + 2πk; -3π/4 + 2πk, k ∈ ℤ.\nб) -3π/2; -11π/4; -9π/4",
+      "expected_key_points": ["пункт а решён верно", "пункт б выполняется отбором на тригонометрической окружности"],
+      "expected_errors": ["ошибки в обозначении/нумерации точек на тригонометрической окружности; по экспертному комментарию пункт б не выполнен"],
+      "expected_manual_review": true
     },
     {
       "id": "13.1.4",
@@ -27,7 +33,10 @@
       "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
       "interval": "[-3π; -3π/2]",
       "pages": [{"page": 13, "crop": [0.03, 0.19, 0.97, 0.79]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) 1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)\n1 - 1 + 2sin²x + √2 sin x = √2 - 2sin(π+x)\n2sin²x + √2 sin x = √2 + 2sin x\n2sin²x - 2sin x + √2 sin x - √2 = 0\n2sin x(sin x - 1) + √2(sin x - 1) = 0\n(sin x - 1)(2sin x + √2) = 0\nsin x - 1 = 0 или 2sin x + √2 = 0\nsin x = 1; x = π/2 + πn, n ∈ ℤ\nsin x = -√2/2\nx = -π/4 + 2πk, k ∈ ℤ\nx = -3π/4 + 2πk, k ∈ ℤ\nб) x ∈ [-3π; -3π/2].\nДля x = π/2 + πn получены n = -2 и n = -3, то есть x = -3π/2 и x = -5π/2.\nДля x = -π/4 + 2πk получено x = -9π/4.\nДля x = -3π/4 + 2πk получено x = -11π/4.\nОтвет: а) π/2 + πn; -π/4 + 2πk; -3π/4 + 2πk.\nб) -11π/4; -9π/4; -3π/2; -5π/2",
+      "expected_key_points": ["разложение на множители до уравнений sin x = 1 и sin x = -√2/2"],
+      "expected_errors": ["для sin x = 1 записан неверный период π: x = π/2 + πn вместо x = π/2 + 2πn"],
+      "expected_manual_review": false
     },
     {
       "id": "13.2.1",
@@ -36,7 +45,10 @@
       "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
       "interval": "[-7π/2; -2π]",
       "pages": [{"page": 14, "crop": [0.03, 0.20, 0.97, 0.75]}],
-      "manual_transcript": ""
+      "manual_transcript": "№13. cos 2x - √2 sin(x+π) - 1 = 0\nа) (1 - 2sin²x) + √2 sin x - 1 = 0, sin x = t\n1 - 2t² + √2t - 1 = 0\n-2t² + √2t = 0\n-t(2t - √2) = 0\n-t(t - √2/2) = 0\n1) t = 0\nsin x = 0\nx = πn, n ∈ ℤ\n2) t = √2/2\nsin x = √2/2\nx = π/4 + 2πk, k ∈ ℤ\nx = 3π/4 + 2πk, k ∈ ℤ\nа) x = nπ; x = π/4 + 2πn; x = 3π/4 + 2πn, n ∈ ℤ\nб) Отобрать на [-7π/2; -2π] корни из nπ, π/4 + 2πn, 3π/4 + 2πn.\nПо окружности получены -13π/4; -3π; -2π.\nОтвет: -13π/4; -3π; -2π",
+      "expected_key_points": ["получены серии x=πn, x=π/4+2πk, x=3π/4+2πk", "в пункте б отобраны -13π/4, -3π, -2π"],
+      "expected_errors": [],
+      "expected_manual_review": false
     },
     {
       "id": "13.2.2",
@@ -44,11 +56,11 @@
       "expert_summary": "Пункт а верен; ошибка при выборе целого параметра в пункте б.",
       "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
       "interval": "[-7π/2; -2π]",
-      "pages": [
-        {"page": 15, "crop": [0.03, 0.20, 0.97, 0.70]},
-        {"page": 16, "crop": [0.03, 0.05, 0.97, 0.69]}
-      ],
-      "manual_transcript": ""
+      "pages": [{"page": 15, "crop": [0.03, 0.20, 0.97, 0.70]}, {"page": 16, "crop": [0.03, 0.05, 0.97, 0.69]}],
+      "manual_transcript": "№13\nа) cos 2x - √2 sin(x+π) - 1 = 0\nЗная, что sin(x+π) = -sin x, тогда уравнение будет:\ncos 2x - √2(-sin x) - 1 = 0\ncos 2x + √2 sin x - 1 = 0\nЗная, что cos 2x = 1 - 2sin²x, тогда:\n1 - 2sin²x + √2 sin x - 1 = 0\n√2 sin x - 2sin²x = 0\nsin x(√2 - 2sin x) = 0\nsin x = 0 (I) или √2 = 2sin x (II)\nI) sin x = 0\nx = πk₁, k₁ ∈ ℤ\nII) sin x = √2/2\nx = π/4 + 2πk₂, k₂ ∈ ℤ\nx = 3π/4 + 2πk₃, k₃ ∈ ℤ\nОтвет пункта а: I x = πk₁; II x = π/4 + 2πk₂; III x = 3π/4 + 2πk₃.\nб) Буду решать с помощью двойного неравенства: если x₀ ∈ [-7π/2; -2π], то -7π/2 ≤ x₀ ≤ -2π.\nI) x = πk₁:\n-7π/2 ≤ πk₁ ≤ -2π\n-3.5 ≤ k₁ ≤ -2\nk₁ ∈ {-2; -3}, поэтому x = -2π и x = -3π.\nII) x = π/4 + 2πk₂:\n-7π/2 ≤ π/4 + 2πk₂ ≤ -2π\n-15/8 ≤ k₂ ≤ -9/8\nцелых k₂ нет.\nIII) x = 3π/4 + 2πk₃:\n-7π/2 ≤ 3π/4 + 2πk₃ ≤ -2π\n-17/8 ≤ k₃ ≤ -11/8\nзаписано k₃ = -3, откуда x = 3π/4 - 6π = -21π/4.\nОтвет: x = -2π; x = -3π; x = -21π/4",
+      "expected_key_points": ["пункт а решён верно", "в пункте б параметр каждой серии должен быть ограничен двойным неравенством"],
+      "expected_errors": ["в третьей серии выбран k₃ = -3, хотя неравенству -17/8 ≤ k₃ ≤ -11/8 соответствует k₃ = -2"],
+      "expected_manual_review": false
     },
     {
       "id": "13.2.4",
@@ -57,7 +69,10 @@
       "task_equation": "cos 2x - √2 sin(x+π) - 1 = 0",
       "interval": "[-7π/2; -2π]",
       "pages": [{"page": 18, "crop": [0.03, 0.22, 0.97, 0.425]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) cos 2x - √2 sin(x+π) - 1 = 0\n1 - 2sin²x + √2 sin x - 1 = 0\nsin x(-2sin x + √2) = 0\nsin x = 0 или sin x = √2/2\nx = πk, k ∈ ℤ\nx = π/4 + πn, n ∈ ℤ\nx = 3π/4 + πm, m ∈ ℤ\nб) x ∈ [-7π/2; -2π]\nполучены x = -2π; x = -3π; x = -13π/4\nОтвет: а) x = πk; x = π/4 + πn; x = 3π/4 + πm.\nб) x = -2π; x = -3π; x = -13π/4",
+      "expected_key_points": ["сведение к sin x = 0 и sin x = √2/2"],
+      "expected_errors": ["для sin x = √2/2 использован неверный период π вместо 2π"],
+      "expected_manual_review": false
     },
     {
       "id": "13.3.1",
@@ -66,16 +81,22 @@
       "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
       "interval": "[3π/2; 3π]",
       "pages": [{"page": 19, "crop": [0.03, 0.205, 0.97, 0.78]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) sin x·cos 2x + √2 cos²x + sin x = 0\nsin x(cos²x - sin²x) + √2(1 - sin²x) + sin x = 0\nsin x(1 - sin²x - sin²x) + √2(1 - sin²x) + sin x = 0\nsin x(1 - 2sin²x) + √2(1 - sin²x) + sin x = 0\n2sin x - 2sin³x + √2(1 - sin²x) = 0\n2sin x(1 - sin²x) + √2(1 - sin²x) = 0\n(1 - sin²x)(2sin x + √2) = 0\n1 - sin²x = 0 или 2sin x + √2 = 0\ncos²x = 0\nx = ±π/2 + πn, n ∈ ℤ\nsin x = -√2/2\nx = -π/4 + 2πn, n ∈ ℤ\nx = -3π/4 + 2πn, n ∈ ℤ\nб) [3π/2; 3π]. Отберём корни при помощи окружности.\nx₁ = 3π/2\nx₂ = 7π/4\nx₃ = 5π/2\nОтвет: а) ±π/2 + πn; -π/4 + 2πn; -3π/4 + 2πn.\nб) 3π/2; 7π/4; 5π/2",
+      "expected_key_points": ["разложение (1-sin²x)(2sin x+√2)=0", "в пункте б получены 3π/2, 7π/4, 5π/2"],
+      "expected_errors": [],
+      "expected_manual_review": false
     },
     {
-      "id": "13.3.2",
+      "id": "13.3.3",
       "expert_score": 1,
-      "expert_summary": "Пункт а верен; ошибка при нахождении целого параметра в пункте б.",
+      "expert_summary": "Пункт а верен; на дуге указан корень вне заданного отрезка, пункт б не выполнен.",
       "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
       "interval": "[3π/2; 3π]",
-      "pages": [{"page": 20, "crop": [0.03, 0.205, 0.97, 0.785]}],
-      "manual_transcript": ""
+      "pages": [{"page": 21, "crop": [0.03, 0.205, 0.97, 0.785]}],
+      "manual_transcript": "№13\nа) sin x·cos 2x + √2 cos²x + sin x = 0\nsin x(1 - 2sin²x) + √2 cos²x + sin x = 0\nsin x - 2sin³x + √2 cos²x + sin x = 0\n2sin x - 2sin³x + √2 cos²x = 0\n2sin x(1 - sin²x) + √2 cos²x = 0\n2sin x·cos²x + √2 cos²x = 0\ncos²x(2sin x + √2) = 0\ncos²x = 0 или 2sin x = -√2\ncos x = 0 или sin x = -√2/2\nx = π/2 + πn, n ∈ ℤ\nx = -π/4 + 2πn, n ∈ ℤ\nx = -3π/4 + 2πn, n ∈ ℤ\nб) Отберём корни с помощью тригонометрической окружности, которые принадлежат [3π/2; 3π].\nt₁ = 2π - π/4 = 7π/4\nНа окружности отмечен также корень π/2, не принадлежащий заданному отрезку.\nОтвет: а) x = π/2 + πn; x = -π/4 + 2πn; x = -3π/4 + 2πn.\nб) 3π/2; 7π/4; π/2",
+      "expected_key_points": ["пункт а решён верно", "в пункте б требуется оставить только корни из [3π/2;3π]"],
+      "expected_errors": ["в пункте б оставлен корень π/2, который не принадлежит [3π/2;3π]"],
+      "expected_manual_review": true
     },
     {
       "id": "13.3.4",
@@ -84,7 +105,10 @@
       "task_equation": "sin x · cos 2x + √2 cos² x + sin x = 0",
       "interval": "[3π/2; 3π]",
       "pages": [{"page": 22, "crop": [0.03, 0.205, 0.97, 0.785]}],
-      "manual_transcript": ""
+      "manual_transcript": "sin x·cos 2x + √2 cos²x + sin x = 0, [3π/2; 3π]\nа) sin x(1 - 2sin²x) + √2(1 - sin²x) + sin x = 0\nsin x - 2sin³x + √2 - √2sin²x + sin x = 0\n-2sin³x + √2 - √2sin²x + 2sin x = 0\n-2sin x(sin²x - 1) - √2(sin²x - 1) = 0\n(sin²x - 1)(-2sin x - √2) = 0\nsin²x - 1 = 0 или -2sin x - √2 = 0\nsin²x = 1\nsin x = ±1\nx = πk, k ∈ ℤ\nsin x = -√2/2\nx = -π/4 + 2πn, n ∈ ℤ\nx = -3π/4 + 2πn, n ∈ ℤ\nб) Отберём корни с помощью тригонометрической окружности на промежутке [3π/2; 3π].\nПолучаем x₁ = 7π/4, x₂ = 2π, x₃ = 3π.\nОтвет: а) x = πk; x = -π/4 + 2πn; x = -3π/4 + 2πn.\nб) 7π/4; 2π; 3π",
+      "expected_key_points": ["сведение к sin²x=1 и sin x=-√2/2"],
+      "expected_errors": ["из sin x = ±1 записано x = πk; это неверное решение простейших тригонометрических уравнений"],
+      "expected_manual_review": false
     },
     {
       "id": "13.4.1",
@@ -93,7 +117,10 @@
       "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
       "interval": "[2π; 7π/2]",
       "pages": [{"page": 23, "crop": [0.03, 0.205, 0.97, 0.52]}],
-      "manual_transcript": ""
+      "manual_transcript": "sin(2x) + 2sin(-x) + cos(-x) - 1 = 0\n2sin x·cos x - 2sin x + cos x - 1 = 0\n2sin x(cos x - 1) + cos x - 1 = 0\n(cos x - 1)(2sin x + 1) = 0\ncos x - 1 = 0 или 2sin x + 1 = 0\ncos x = 1\nx = 2πk, k ∈ ℤ\nsin x = -1/2\nx = -π/6 + 2πk, k ∈ ℤ\nx = -5π/6 + 2πk, k ∈ ℤ\nОтбор корней на [2π; 7π/2]:\nиз x = 2πk получено x = 2π;\nдля x = -π/6 + 2πk целых k на отрезке нет;\nиз x = -5π/6 + 2πk получено x = 19π/6.\nОтвет: а) 2πk; -π/6 + 2πk; -5π/6 + 2πk, k ∈ ℤ.\nб) 2π; 19π/6",
+      "expected_key_points": ["правильное разложение (cos x-1)(2sin x+1)=0", "в пункте б получены 2π и 19π/6"],
+      "expected_errors": [],
+      "expected_manual_review": false
     },
     {
       "id": "13.4.3",
@@ -102,7 +129,10 @@
       "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
       "interval": "[2π; 7π/2]",
       "pages": [{"page": 25, "crop": [0.03, 0.205, 0.97, 0.60]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) sin 2x + 2sin(-x) + cos(-x) - 1 = 0\n2sin x·cos x - 2sin x + cos x - 1 = 0\n2sin x(cos x - 1) + (cos x - 1) = 0\n(cos x - 1)(2sin x + 1) = 0\ncos x = 1 или sin x = -1/2\nx = 2πn, n ∈ ℤ\nx = -π/6 + 2πk, k ∈ ℤ\nx = -5π/6 + 2πk, k ∈ ℤ\nб) На тригонометрической окружности для [2π; 7π/2] отмечены 2π, 19π/6 и также 7π/6.\n2π - 5π/6 = 7π/6.\nОтвет: а) {2πn; -π/6 + 2πk; -5π/6 + 2πk}, n,k ∈ ℤ.\nб) {2π; 7π/6}",
+      "expected_key_points": ["пункт а решён верно", "в пункте б корни должны принадлежать [2π;7π/2]"],
+      "expected_errors": ["в пункте б указан 7π/6, который не принадлежит [2π;7π/2]"],
+      "expected_manual_review": false
     },
     {
       "id": "13.4.4",
@@ -111,7 +141,10 @@
       "task_equation": "sin 2x + 2 sin(-x) + cos(-x) - 1 = 0",
       "interval": "[2π; 7π/2]",
       "pages": [{"page": 26, "crop": [0.03, 0.205, 0.97, 0.805]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) sin 2x + 2sin(-x) + cos(-x) - 1 = 0\nsin 2x = 2sin x cos x, sin(-x) = -sin x, cos(-x) = cos x, тогда:\n2sin x cos x - 2sin x + cos x - 1 = 0\n2sin x(cos x - 1) + cos x - 1 = 0\n(2sin x - 1)(cos x - 1) = 0\n2sin x - 1 = 0 или cos x - 1 = 0\nsin x = 0.5 или cos x = 1\nx = π/6 + 2πn₁, n₁ ∈ ℤ\nx = 5π/6 + 2πn₂, n₂ ∈ ℤ\nx = 2πn₃, n₃ ∈ ℤ\nб) Отберём подходящие корни, используя единичную окружность.\nНа окружности отмечены 2π, 13π/6, 17π/6 и 7π/2.\nПодходят 2π, 13π/6, 17π/6.\nОтвет: а) x = π/6 + 2πn₁; x = 5π/6 + 2πn₂; x = 2πn₃.\nб) x = 2π; x = 13π/6; x = 17π/6",
+      "expected_key_points": ["после 2sin x(cos x-1)+cos x-1 нужно вынести общий множитель cos x-1"],
+      "expected_errors": ["в 5-й строке неверно получено (2sin x - 1)(cos x - 1); должно быть (2sin x + 1)(cos x - 1)"],
+      "expected_manual_review": false
     }
   ]
 }
