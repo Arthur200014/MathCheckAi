@@ -1,9 +1,11 @@
 from src.tools.ege13_fast_reference import verify_ege13_reference_fast
+from src.tools.ege13_reasoning import deterministic_reasoning_overrides_ege13
 from src.tools.ege13_student import (
     extract_ege13_student_evidence,
     extract_ege13_explicit_final_answer,
     verify_ege13_student_machine_spec,
 )
+from src.tools.solution_steps import split_solution_step_texts
 
 
 TASK = (
@@ -53,3 +55,18 @@ def test_n_pi_school_notation_is_parsed_and_both_parts_match():
     )
     assert checked.part_a_equivalent is True
     assert checked.part_b_matches is True
+
+
+def test_compact_part_b_root_row_cannot_be_marked_wrong_by_llm():
+    reference = verify_ege13_reference_fast({}, task_statement=TASK)
+    steps = [
+        {"step_id": f"S{i + 1}", "text": text}
+        for i, text in enumerate(split_solution_step_texts(TRANSCRIPT, max_steps=30))
+    ]
+    overrides = deterministic_reasoning_overrides_ege13(
+        steps,
+        task_statement=TASK,
+        expected_roots=reference.expected_roots,
+    )
+    row = next(step for step in steps if step["text"] == "-13π/4; -3π; -2π")
+    assert overrides[row["step_id"]]["status"] == "correct"
