@@ -297,10 +297,16 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
             except Exception as exc:
                 errors.append(f"student_family_parse_failed:{expr_text}:{exc}")
                 continue
-            if symbol not in parsed.free_symbols:
+            # A genuine EGE general-solution family has exactly one free integer
+            # parameter. If OCR/prose produced extra symbols, this x= fragment is
+            # not safe machine evidence and must be ignored rather than scored.
+            if parsed.free_symbols != {symbol}:
                 continue
             canonical = sp.sstr(sp.simplify(parsed))
-            sample_set = _dedupe([sp.simplify(parsed.subs(symbol, i)) for i in range(-6, 7)])
+            sample_values = [sp.simplify(parsed.subs(symbol, i)) for i in range(-6, 7)]
+            if any(value.free_symbols for value in sample_values):
+                continue
+            sample_set = _dedupe(sample_values)
             if any(_same_set(sample_set, old) for old in seen_sets):
                 continue
             seen_sets.append(sample_set)
@@ -312,11 +318,18 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
 def _parse_result_root(step: str) -> tuple[list[str], list[str]]:
     value = _normalize(step).strip()
     indexed = _INDEXED_ROOT_RE.search(value) is not None
-    enumerated = _ENUM_ROOT_RE.search(value) is not None
+    enum_match = _ENUM_ROOT_RE.search(value)
+    enumerated = enum_match is not None
     direct = re.match(r"(?i)^\s*x(?:\d+)?\s*=", value) is not None and not _contains_periodic_parameter(value)
-    if not (indexed or enumerated or direct) or "=" not in value:
+    if not (indexed or enumerated or direct):
         return [], []
-    return _extract_pi_tokens(value.rsplit("=", 1)[-1].strip().rstrip(".;,"))
+    if "=" in value:
+        candidate = value.rsplit("=", 1)[-1].strip().rstrip(".;,")
+    elif enumerated and enum_match is not None:
+        candidate = value[enum_match.end():].strip().rstrip(".;,")
+    else:
+        return [], []
+    return _extract_pi_tokens(candidate)
 
 
 def _parse_part_b_roots(part_b: str) -> tuple[list[str], list[str], list[str]]:
@@ -400,7 +413,7 @@ def deterministic_step_overrides_ege13(steps: list[dict[str, str]], *, task_stat
             continue
         if _PART_B_RE.search("\n" + _normalize(text)):
             in_part_b = True
-        families, _, _ = _extract_student_families_from_text(text)
+        families, _, _ = _extract_student_families_from_text(text) if not in_part_b else ([], [], [])
         if families and reference_residual is not None:
             family_errors: list[str] = []
             for family in families:
