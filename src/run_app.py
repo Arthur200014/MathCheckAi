@@ -17,8 +17,7 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
 def _build_web_ui() -> Path:
     source = api.UI_INDEX_PATH.read_text(encoding="utf-8")
 
-    # Пользователю не нужен технический ID. Оставляем его только внутри формы,
-    # чтобы старый API и сохранение истории продолжали работать без изменений.
+    # ID нужен API, но пользователю он не нужен.
     source = _replace_once(
         source,
         '<label for="studentId">ID ученика</label><input id="studentId" class="input" value="student-001">',
@@ -26,7 +25,7 @@ def _build_web_ui() -> Path:
         "student id field",
     )
 
-    # Технический JSON полезен для отладки, но не должен занимать место в обычном интерфейсе.
+    # Отладочный JSON в обычном интерфейсе не показываем.
     source = _replace_once(
         source,
         '<details><summary>Технические данные / JSON для отправки</summary>',
@@ -34,10 +33,16 @@ def _build_web_ui() -> Path:
         "technical details",
     )
 
-    # Версия сборки тоже не нужна в пользовательском экране.
     source = source.replace('class="version"', 'class="version hidden"', 1)
 
-    # В истории показываем дату проверки, без внутреннего идентификатора пользователя.
+    # История остаётся в данных, но на основном экране не показывается.
+    source = _replace_once(
+        source,
+        '<section id="historyCard" class="card">',
+        '<section id="historyCard" class="card hidden">',
+        "history card",
+    )
+
     source = _replace_once(
         source,
         "left.querySelector('.historyMeta').textContent=`${item.studentId||'ученик'} · ${dt.toLocaleString('ru-RU')}`;",
