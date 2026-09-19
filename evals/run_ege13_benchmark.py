@@ -4,10 +4,16 @@ Official eval flow mirrors the product boundary:
 1) Vision reads the photo;
 2) raw OCR is measured against a human-checked transcript;
 3) that human-checked transcript represents the mandatory confirmation step;
-4) Solver -> deterministic reference verifier -> optional diagram verification -> Grader -> Reviewer;
+4) Solver -> deterministic reference verifier -> Grader -> Reviewer;
 5) final score is compared with the expert score.
 
+Important: a Vision formatting/OCR failure is recorded as a Vision failure, but it
+must not cancel the downstream grading eval. In the product a human can still
+enter/confirm the transcript manually, so Score accuracy is measured from the
+human-confirmed transcript while Vision quality is measured separately.
+
 Human editing time is intentionally excluded from latency. Model/tool runtime is included.
+The student's trig-circle drawing is intentionally ignored in this MVP benchmark.
 """
 
 from __future__ import annotations
@@ -31,8 +37,6 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.agents.diagram_verifier import diagram_final_verifier_node, diagram_verifier_node
-from src.agents.diagram_vision import diagram_reinspect_node, diagram_vision_node
 from src.agents.grader import grader_agent
 from src.agents.reference_verifier import reference_verifier_agent
 from src.agents.reviewer import reviewer_agent
@@ -117,11 +121,6 @@ def _similarity(actual: str, expected: str) -> float:
     return round(SequenceMatcher(None, _normalize_text(actual), _normalize_text(expected)).ratio(), 4)
 
 
-def _uses_visual_selection(transcript: str) -> bool:
-    text = str(transcript or "").lower()
-    return bool(re.search(r"окруж|дуг|рисунк|графическ|единичн.{0,8}круг|тригонометрическ", text))
-
-
 @contextmanager
 def _model_for_all_agents(model: str):
     old = {key: os.environ.get(key) for key in MODEL_ENV_KEYS}
@@ -173,7 +172,7 @@ def _run_confirmed_pipeline(case: dict[str, Any], model: str, transcript: str) -
         "human_confirmation_required": True,
         "human_confirmation_completed": True,
         "transcript_confirmation_source": "eval_human_ground_truth",
-        "image_b64": str(case.get("_benchmark_image_b64", "") or ""),
+        "image_b64": "",
         "errors": [],
         "warnings": [],
     }
@@ -190,19 +189,10 @@ def _run_confirmed_pipeline(case: dict[str, Any], model: str, transcript: str) -
         t = time.perf_counter()
         state.update(reference_verifier_agent(state))
         state["reference_elapsed_seconds"] = round(time.perf_counter() - t, 3)
-
-        diagram_total = 0.0
-        if state.get("reference_verification_ok") and state.get("image_b64") and _uses_visual_selection(transcript):
-            t = time.perf_counter()
-            state.update(diagram_vision_node(state))
-            state.update(diagram_verifier_node(state))
-            diagram_total += time.perf_counter() - t
-            if state.get("diagram_reinspection_needed", False):
-                t = time.perf_counter()
-                state.update(diagram_reinspect_node(state))
-                state.update(diagram_final_verifier_node(state))
-                diagram_total += time.perf_counter() - t
-        state["diagram_elapsed_seconds"] = round(diagram_total, 3)
+        state["diagram_elapsed_seconds"] = 0.0
+        state["diagram_verification_status"] = "IGNORED_BY_MVP"
+        state["diagram_part_b_valid"] = None
+        state["diagram_method_used"] = False
 
         if state.get("reference_verification_ok"):
             t = time.perf_counter()
@@ -237,21 +227,21 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
         image_bytes = _image_bytes_for_vision(paths)
         vision = _run_vision(case, model, image_bytes)
         vision_transcript = str(vision.get("transcript", "") or "").strip()
-        if not vision_transcript:
-            return {
-                "case_id": case["id"], "model": model, "expert_score": case.get("expert_score"),
-                "ok": False, "vision_ok": False, "vision_seconds": _seconds(vision, "vision"),
-                "total_seconds": round(time.perf_counter() - started, 3),
-                "error": "; ".join(str(x) for x in vision.get("errors", [])) or "empty_vision_transcript",
-            }
+        vision_errors = [str(x) for x in vision.get("errors", []) if str(x)]
+        vision_ok = bool(vision_transcript) and not vision_errors
+        vision_error = "; ".join(vision_errors)
 
+        # Vision and grading are deliberately separate metrics. If Vision fails
+        # to produce valid JSON/OCR, the product still has a mandatory human
+        # confirmation/editor step. The benchmark therefore records Vision as
+        # failed, then continues downstream from the human-checked transcript.
         confirmed_transcript = manual_transcript
-        similarity = _similarity(vision_transcript, manual_transcript)
-        human_edit_required = _normalize_text(vision_transcript) != _normalize_text(manual_transcript)
+        similarity = _similarity(vision_transcript, manual_transcript) if vision_transcript else None
+        human_edit_required = True if not vision_transcript else (
+            _normalize_text(vision_transcript) != _normalize_text(manual_transcript)
+        )
 
-        pipeline_case = dict(case)
-        pipeline_case["_benchmark_image_b64"] = base64.b64encode(image_bytes).decode("ascii")
-        result = _run_confirmed_pipeline(pipeline_case, model, confirmed_transcript)
+        result = _run_confirmed_pipeline(case, model, confirmed_transcript)
         final_score = result.get("final_score")
         expert_score = int(case.get("expert_score", -1))
         score_int = int(final_score) if final_score is not None else None
@@ -267,13 +257,14 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
             "score_match": score_int == expert_score if score_int is not None else False,
             "score_abs_error": abs(score_int - expert_score) if score_int is not None else None,
             "ok": score_int is not None,
-            "vision_ok": not bool(vision.get("errors")),
+            "vision_ok": vision_ok,
+            "vision_error": vision_error,
             "vision_similarity": similarity,
             "human_edit_required": human_edit_required,
             "reference_ok": bool(result.get("reference_verification_ok", False)),
-            "diagram_used": bool(result.get("diagram_method_used", False)),
-            "diagram_status": result.get("diagram_verification_status", "NOT_APPLICABLE"),
-            "diagram_valid": result.get("diagram_part_b_valid"),
+            "diagram_used": False,
+            "diagram_status": "IGNORED_BY_MVP",
+            "diagram_valid": None,
             "grader_ok": bool(result.get("grader_ok", False)),
             "reviewer_ok": bool(result.get("reviewer_ok", False)),
             "manual_review": manual_review,
@@ -283,7 +274,7 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
             "vision_seconds": _seconds(vision, "vision"),
             "solver_seconds": _seconds(result, "solver"),
             "reference_seconds": _seconds(result, "reference"),
-            "diagram_seconds": _seconds(result, "diagram"),
+            "diagram_seconds": 0.0,
             "grader_seconds": _seconds(result, "grader"),
             "reviewer_seconds": _seconds(result, "reviewer"),
             "total_seconds": total,
@@ -296,7 +287,7 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
             "expert_summary": case.get("expert_summary", ""),
             "warnings": result.get("warnings", []),
             "errors": result.get("errors", []),
-            "error": "",
+            "error": "" if score_int is not None else "downstream_no_score",
         }
     except Exception as exc:
         return {
@@ -327,6 +318,7 @@ def _summary_for_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "score_accuracy": _rate(scored, "score_match"),
         "mean_abs_score_error": _mean(scored, "score_abs_error"),
         "vision_success_rate": _rate(rows, "vision_ok"),
+        "valid_json_rate": _rate(rows, "vision_ok"),
         "mean_vision_similarity": _mean(rows, "vision_similarity"),
         "human_correction_rate": _rate(rows, "human_edit_required"),
         "reference_success_rate": _rate(rows, "reference_ok"),
@@ -347,7 +339,7 @@ def _summary_for_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     keys = [
         "case_id", "model", "expert_score", "final_score", "score_match", "score_abs_error",
-        "vision_ok", "vision_similarity", "human_edit_required", "reference_ok", "diagram_used",
+        "vision_ok", "vision_error", "vision_similarity", "human_edit_required", "reference_ok", "diagram_used",
         "diagram_status", "diagram_valid", "grader_ok", "reviewer_ok", "manual_review",
         "expected_manual_review", "manual_review_match", "error_class", "vision_seconds",
         "solver_seconds", "reference_seconds", "diagram_seconds", "grader_seconds", "reviewer_seconds",
@@ -371,17 +363,19 @@ def _write_markdown(path: Path, summaries: dict[str, dict[str, Any]]) -> None:
     lines = [
         "# EGE-13 model benchmark",
         "",
-        "Primary flow: photo -> Vision metric -> human confirmation -> Solver -> verifier -> optional diagram verification -> Grader -> Reviewer.",
-        "Human editing time is excluded from latency; model/tool runtime is included.",
+        "Primary flow: photo -> Vision metric -> human confirmation -> Solver -> verifier -> Grader -> Reviewer.",
+        "Vision failures are counted separately and do not cancel the downstream human-confirmed grading eval.",
+        "Trig-circle drawings are ignored in this MVP. Human editing time is excluded from latency.",
         "",
-        "| Model | Cases | OCR similarity | Human correction | Score accuracy | Manual-review match | Avg total, s |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Model | Cases | Vision success | OCR similarity | Human correction | Score accuracy | Manual-review match | Avg total, s |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for model, summary in summaries.items():
         lines.append(
             "| " + " | ".join([
                 model,
                 _fmt(summary.get("cases")),
+                _fmt(summary.get("vision_success_rate")),
                 _fmt(summary.get("mean_vision_similarity")),
                 _fmt(summary.get("human_correction_rate")),
                 _fmt(summary.get("score_accuracy")),
@@ -390,7 +384,7 @@ def _write_markdown(path: Path, summaries: dict[str, dict[str, Any]]) -> None:
             ]) + " |"
         )
     lines.append("")
-    lines.append("Full per-case data, raw Vision text, confirmed transcripts and diagram verdicts are in the matching JSON file.")
+    lines.append("Full per-case data, Vision failures/raw text and confirmed transcripts are in the matching JSON file.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -401,9 +395,16 @@ def main() -> None:
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--models", nargs="*", default=BENCHMARK_VISION_MODELS)
     parser.add_argument("--limit", type=int, default=0, help="0 = все кейсы")
+    parser.add_argument("--case-id", action="append", default=[], help="запустить только указанный id; можно повторить флаг")
     args = parser.parse_args()
 
     cases = _load_cases(args.cases)
+    if args.case_id:
+        wanted = set(args.case_id)
+        cases = [case for case in cases if str(case.get("id")) in wanted]
+        missing_ids = wanted - {str(case.get("id")) for case in cases}
+        if missing_ids:
+            raise SystemExit("Не найдены case id: " + ", ".join(sorted(missing_ids)))
     if args.limit > 0:
         cases = cases[: args.limit]
     _validate_ground_truth(cases)
@@ -413,7 +414,7 @@ def main() -> None:
     args.results_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     print(f"Кейсов: {len(cases)}; моделей: {len(args.models)}")
-    print("Flow: Vision -> human confirmation -> Solver -> verifier -> optional diagram check -> Grader -> Reviewer")
+    print("Flow: Vision metric -> human confirmation -> Solver -> verifier -> Grader -> Reviewer; circle ignored")
 
     for model in args.models:
         print(f"\n=== {model} ===")
@@ -422,9 +423,12 @@ def main() -> None:
             row = _run_case(case, model, args.data_dir)
             rows.append(row)
             if row.get("final_score") is not None:
+                ocr = row.get("vision_similarity")
+                ocr_text = f"{ocr:.3f}" if isinstance(ocr, (int, float)) else "FAIL"
+                vision_mark = "ok" if row.get("vision_ok") else "FAIL"
                 print(
                     f"score {row['final_score']}/{row['expert_score']}, "
-                    f"ocr={row.get('vision_similarity', 0):.3f}, {row.get('total_seconds', 0):.1f}s"
+                    f"vision={vision_mark}, ocr={ocr_text}, {row.get('total_seconds', 0):.1f}s"
                 )
             else:
                 print(f"ERROR: {row.get('error', 'no score')}")
@@ -441,7 +445,7 @@ def main() -> None:
 
     json_path.write_text(
         json.dumps({
-            "method": "photo -> Vision metric -> human confirmation -> Solver -> verifier -> optional diagram -> Grader -> Reviewer",
+            "method": "photo -> Vision metric -> human confirmation -> Solver -> verifier -> Grader -> Reviewer; circle ignored",
             "models": args.models,
             "summaries": summaries,
             "rows": rows,
