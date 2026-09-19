@@ -40,4 +40,4 @@ echo "Swagger: http://127.0.0.1:8000/docs"
 echo "Аварийный лимит одного текстового агента: ${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS} с"
 echo "Остановка: Ctrl+C"
 
-exec uvicorn src.api:app --reload
+exec uvicorn src.run_app:app --reload
