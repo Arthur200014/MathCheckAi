@@ -7,10 +7,11 @@ DEFAULT_GRADER_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_REVIEWER_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_DIAGRAM_MODEL = "qwen3-vl:4b-instruct"
 
-# Models used for the benchmark.
+# Models used for the benchmark. Keep this list to instruction-following
+# multimodal models that are practical to run locally on the target Mac.
 BENCHMARK_VISION_MODELS = [
     "qwen3-vl:4b-instruct",
-    "qwen2.5vl:7b",
+    "gemma3:4b",
     "granite3.2-vision:2b",
 ]
 
