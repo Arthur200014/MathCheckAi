@@ -17,6 +17,34 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
 def _build_web_ui() -> Path:
     source = api.UI_INDEX_PATH.read_text(encoding="utf-8")
 
+    # Пользователю не нужен технический ID. Оставляем его только внутри формы,
+    # чтобы старый API и сохранение истории продолжали работать без изменений.
+    source = _replace_once(
+        source,
+        '<label for="studentId">ID ученика</label><input id="studentId" class="input" value="student-001">',
+        '<input id="studentId" type="hidden" value="student-local">',
+        "student id field",
+    )
+
+    # Технический JSON полезен для отладки, но не должен занимать место в обычном интерфейсе.
+    source = _replace_once(
+        source,
+        '<details><summary>Технические данные / JSON для отправки</summary>',
+        '<details class="hidden"><summary>Технические данные</summary>',
+        "technical details",
+    )
+
+    # Версия сборки тоже не нужна в пользовательском экране.
+    source = source.replace('class="version"', 'class="version hidden"', 1)
+
+    # В истории показываем дату проверки, без внутреннего идентификатора пользователя.
+    source = _replace_once(
+        source,
+        "left.querySelector('.historyMeta').textContent=`${item.studentId||'ученик'} · ${dt.toLocaleString('ru-RU')}`;",
+        "left.querySelector('.historyMeta').textContent=dt.toLocaleString('ru-RU');",
+        "history meta",
+    )
+
     source = _replace_once(
         source,
         '<input id="file" type="file" accept="image/png,image/jpeg,image/webp">',
@@ -62,7 +90,7 @@ function showSelectedPhotos(files){releasePhotoUrls();st.files=files;st.file=fil
     source = _replace_once(source, old_change, new_change, "file change")
 
     old_scan = "$('scanBtn').addEventListener('click',async()=>{if(!st.file)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText','Распознаю работу');try{const fd=new FormData();fd.append('image',st.file);fd.append('student_id',$('studentId').value.trim()||'student-001');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photo',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
-    new_scan = "$('scanBtn').addEventListener('click',async()=>{const files=(st.files&&st.files.length?st.files:[st.file]).filter(Boolean);if(!files.length)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText',files.length===1?'Распознаю работу':`Распознаю ${files.length} фото одним проходом`);try{const fd=new FormData();files.forEach(f=>fd.append('images',f));fd.append('student_id',$('studentId').value.trim()||'student-001');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photos',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
+    new_scan = "$('scanBtn').addEventListener('click',async()=>{const files=(st.files&&st.files.length?st.files:[st.file]).filter(Boolean);if(!files.length)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText',files.length===1?'Распознаю работу':`Распознаю ${files.length} фото одним проходом`);try{const fd=new FormData();files.forEach(f=>fd.append('images',f));fd.append('student_id',$('studentId').value.trim()||'student-local');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photos',{method:'POST',body:fd}));st.ocr=d;$('ocrJson').textContent=pretty(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
     source = _replace_once(source, old_scan, new_scan, "scan click")
 
     output = Path(tempfile.gettempdir()) / "mathcheck-ai-index.html"
