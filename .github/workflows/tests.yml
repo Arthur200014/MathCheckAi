@@ -17,6 +17,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Check eval scripts
+        run: python -m py_compile evals/run_ege13_benchmark.py evals/prepare_ege13_images.py
       - name: Run tests
         env:
           PYTHONUNBUFFERED: '1'
