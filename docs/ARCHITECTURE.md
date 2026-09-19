@@ -1,66 +1,88 @@
-# MathCheck AI — Stage 2.9.7.8 architecture
+# MathCheck AI — ЕГЭ №13 architecture
 
 ## Runtime flow
 
 ```mermaid
 flowchart LR
-    A[Upload one photo: task + solution] --> P[Task Profile]
-    P --> V[Vision Agent]
-    V --> H[Human confirmation of task + solution]
-    H --> S[Solver Agent]
-    S --> R[Deterministic Reference Verifier / SymPy]
+    U[1-8 photos of one solution] --> MP[Multi-photo input]
+    MP --> V[Vision Agent: one pass]
+    V --> H[Human OCR editor]
+    H --> P{Deterministic preflight}
+    P -- fix fields --> H
+    P -- ok --> S[Solver Agent]
+    S --> R[Fast deterministic reference verifier / SymPy]
     R --> G[Grader Agent]
     G --> Q[Reviewer Agent]
-    Q --> B[Deterministic Report Builder]
-    B --> M[SQLite memory + saved report]
+    Q --> B[Deterministic report builder]
+    B --> M[SQLite memory + report]
 ```
 
-The product flow is intentionally sequential on the local Mac. Human confirmation happens before any mathematical grading.
+For one image Vision receives the original uploaded bytes. For several images the server builds one ordered page sheet and sends it to Vision in one model call. This avoids N sequential Vision calls for an N-page solution.
+
+The mathematical grading tail is intentionally sequential on the local Mac because Solver, Grader and Reviewer share one local accelerator. Human confirmation and deterministic preflight happen before Solver is allowed to run.
 
 ## Four agent responsibilities
 
-1. **Vision Agent** — one photo -> draft task statement + draft student transcript + OCR uncertainty metadata. It does not solve or correct either text.
-2. **Solver Agent** — confirmed task statement -> independent machine-first solution. It never sees the student's answer.
-3. **Grader Agent** — confirmed student transcript + verified reference + criteria -> compact error classification/audit. Student evidence is source-locked to the confirmed transcript.
-4. **Reviewer Agent** — one-pass consistency audit of the deterministic score, Grader output and criteria. It cannot replace the student's evidence or silently rewrite the score.
+1. **Vision Agent** — one Vision call -> draft task text/student transcript + OCR uncertainty metadata. It transcribes and does not grade the student.
+2. **Solver Agent** — confirmed task equation + interval -> independent reference solution. It never receives the student's solution as solving evidence.
+3. **Grader Agent** — confirmed student transcript + verified reference + criteria -> error classification and draft score. Student evidence is source-locked to the confirmed transcript.
+4. **Reviewer Agent** — one-pass consistency audit of the deterministic score and Grader output. It may add an advisory but cannot silently replace the deterministic score.
 
-LangGraph carries the shared `ReviewState`. A separate Supervisor Agent is intentionally not used.
+LangGraph carries the shared `ReviewState`. A separate Supervisor Agent is intentionally not used because the flow is fixed and auditable.
 
 ## Human-confirmed source boundary
 
-Vision output is never authoritative. The browser shows the original image beside two editable fields:
+Vision output is always a draft. The browser displays the source photo(s) and three editable fields:
 
-- `confirmed_task_statement`
-- `confirmed_transcript`
+- `confirmed_task_equation`;
+- `confirmed_interval`;
+- `confirmed_transcript`.
 
-Only after the user confirms both does the post-confirmation graph run. The authoritative task input for Solver/reference verification is the confirmed task statement. The authoritative student evidence for grading is the confirmed transcript.
+The preflight validates the confirmed equation/interval and obvious OCR-structure problems before any Solver/Grader/Reviewer call. If preflight fails, the user remains in the same editor, corrects the field and checks again.
 
-If the task statement is not visible in the photo, the task field stays empty and the human can type it manually on the confirmation screen. This does not trigger a second Vision call.
+After confirmation, the source of truth is exactly those confirmed fields. The interval is never reconstructed from the correct answer and the student's mathematics is never auto-corrected before grading.
 
 ## Deterministic tools / nodes
 
-These are not counted as agents:
+These are tools/nodes, not additional agents:
 
-- `load_criteria`
-- `verify_expression`
-- `verify_roots`
-- `verify_ege13_reference` / SymPy correction
-- deterministic student-evidence extractor / source lock
-- deterministic rubric score
-- `render_trig_circle`
-- report builder
-- `save_review` / `load_student_history` / `save_report`
+- task profile loader;
+- EGE-13 input preflight;
+- criteria loader;
+- expression/family/root parsers;
+- fast SymPy reference verifier;
+- source-locked student evidence extractor;
+- deterministic EGE-13 rubric score;
+- trig-circle renderer;
+- report builder;
+- SQLite review/history/report persistence.
 
 ## Runtime / latency rules
 
-- Only Vision receives the image.
-- Original PNG/JPEG/WEBP bytes are sent to Vision; no resize/recompression.
-- Vision has no application-level `num_predict` cap.
-- Ollama transport is NDJSON streaming with connect timeout, idle timeout, and a high emergency total ceiling.
-- Grader and Reviewer are single-pass: no automatic retry call.
-- Grader/Reviewer do not have the old small custom output caps that could truncate JSON.
-- Solver, Grader and Reviewer run only after human confirmation of both task and solution.
+- Multiple pages are processed in one Vision call.
+- One-page input keeps original bytes; multi-page input is stitched in page order with bounded width for reasonable local Vision latency.
+- Ollama transport uses NDJSON streaming with separate connect, idle and emergency total deadlines.
+- Partial/truncated agent JSON is never accepted as a valid response.
+- Grader and Reviewer are single-pass: no hidden retry loop.
+- A progress store measures Vision, preflight, Solver, reference verification, Grader, Reviewer, report building and persistence separately.
+- Solver/Grader/Reviewer start only after human confirmation and successful preflight.
 
-## Diagram scope
+## Reliability rules for №13
 
-Student diagram OCR remains disabled in the runtime MVP for latency. The final report can still contain a deterministic, mathematically verified reference trig circle rendered from the verified reference answer.
+- Ambiguous OCR such as `sin x (x+π)` is blocked before Solver until the human makes the meaning explicit.
+- The reference verifier uses bounded/fast symbolic transformations instead of an unrestricted full trigonometric `solveset` call.
+- OCR variants of the heading for part б (`б)`, `b)`, observed `d)`/`6)`) are normalized only for section detection; the student's mathematical content is preserved.
+- Explicit final roots from part б are checked deterministically against verified interval roots.
+
+## Persistence and observability
+
+- SQLite stores review/history data.
+- Local JSONL records LLM telemetry and slow-call alerts.
+- Browser UI shows per-stage elapsed time during a review.
+- The final observability stage adds a trace/metrics layer for the academic report while keeping JSON logs as an independent local source.
+
+## Diagrams
+
+Student-drawn diagram verification is outside the runtime MVP because it adds another expensive Vision pass. The final report can still render a deterministic, mathematically verified reference trigonometric circle from the verified answer.
+
+See also `docs/C4.md` and `docs/sequence.mmd`.
