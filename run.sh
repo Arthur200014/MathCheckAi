@@ -18,12 +18,12 @@ set -a
 source .env.local
 set +a
 
-# Старые .env.local могли сохранить лимит 900 секунд на каждый текстовый агент.
-# Для обычной проверки №13 это слишком долго: если локальная модель зависла,
-# Solver/Grader/Reviewer должны быстро отдать управление детерминированному слою.
-TEXT_TIMEOUT="${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS:-120}"
-if ! [[ "$TEXT_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$TEXT_TIMEOUT" -gt 120 ]; then
-  TEXT_TIMEOUT=120
+# Это только аварийный потолок для одного текстового агента.
+# Частичный JSON не используется: при превышении лимита вызов считается неудачным.
+# 5 минут оставляют запас медленной локальной модели, но не дают одному этапу висеть 15 минут.
+TEXT_TIMEOUT="${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS:-300}"
+if ! [[ "$TEXT_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$TEXT_TIMEOUT" -gt 300 ]; then
+  TEXT_TIMEOUT=300
 fi
 export OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS="$TEXT_TIMEOUT"
 
@@ -37,7 +37,7 @@ fi
 echo "MathCheck AI запускается..."
 echo "Сайт:    http://127.0.0.1:8000/"
 echo "Swagger: http://127.0.0.1:8000/docs"
-echo "Лимит текстового агента: ${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS} с"
+echo "Аварийный лимит одного текстового агента: ${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS} с"
 echo "Остановка: Ctrl+C"
 
 exec uvicorn src.api:app --reload
