@@ -10,8 +10,8 @@ def test_visible_leading_equation_becomes_task_draft_when_vision_task_empty():
         "2\\sin^2x+\\sqrt{2}\\sin x=\\sqrt{2}+2\\sin x"
     )
     draft, source = infer_task_statement_draft("", transcript)
-    assert draft.startswith("a) 1-")
-    assert source == "transcript_leading_equation"
+    assert draft.startswith("1-")
+    assert source == "student_leading_equation"
 
 
 def test_fallback_never_invents_missing_interval():
