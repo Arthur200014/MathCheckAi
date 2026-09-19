@@ -5,20 +5,16 @@ import re
 import sympy as sp
 
 from src.tools.ege13_reference import _dedupe, _equal, _extract_part_a_equation, _sympify, _verify_family_samples
-from src.tools.ege13_student import _extract_student_families_from_text, _parse_last_rhs_root
+from src.tools.ege13_student import _extract_pi_tokens, _extract_student_families_from_text, _parse_last_rhs_root
 
 
-_PART_B_MARKER_RE = re.compile(r"(?i)(?:б|b)\s*\)")
+# d)/6) are observed OCR variants of handwritten Cyrillic б).
+_PART_B_MARKER_RE = re.compile(r"(?i)^\s*(?:б|b|d|6)\s*\)")
 _INDEXED_ROOT_RE = re.compile(r"(?i)x_\{?\d+\}?\s*=")
 
 
 def _equivalent_to_original(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol) -> bool:
-    """Return True only when equivalence is actually proved.
-
-    A failure to prove equivalence is deliberately *not* interpreted as an error:
-    a student's line may be a branch/case of a factored equation rather than a
-    full equation equivalent to the original one.
-    """
+    """Return True only when equivalence is actually proved."""
     try:
         diff = sp.trigsimp(sp.expand_trig(sp.expand(candidate - reference)))
         if diff == 0:
@@ -34,13 +30,7 @@ def _equivalent_to_original(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol
 
 
 def _is_zero_factor_branch(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol) -> bool:
-    """Recognise a valid branch such as sin(x)-1=0 after a product equals zero.
-
-    The important distinction is logical: one branch is not equivalent to the
-    original equation by itself, but it can still be a perfectly valid factor
-    branch. We mark it correct only when the candidate residual is an actual
-    symbolic factor of the verified original residual.
-    """
+    """Recognise a valid branch such as sin(x)-1=0 after a product equals zero."""
     try:
         ref = sp.factor(sp.trigsimp(sp.expand_trig(reference)))
         cand = sp.factor(sp.trigsimp(sp.expand_trig(candidate)))
@@ -50,11 +40,13 @@ def _is_zero_factor_branch(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol)
         denominator = sp.factor(sp.denom(quotient))
         if denominator != 1:
             return False
-        # A constant quotient would mean full equivalence; branch mode is for a
-        # proper factor only.
         return bool(quotient.has(x))
     except Exception:
         return False
+
+
+def _same_values(left: list[sp.Expr], right: list[sp.Expr]) -> bool:
+    return len(left) == len(right) and all(any(_equal(a, b) for b in right) for a in left)
 
 
 def deterministic_reasoning_overrides_ege13(
@@ -63,14 +55,7 @@ def deterministic_reasoning_overrides_ege13(
     task_statement: str,
     expected_roots: list[str],
 ) -> dict[str, dict[str, str]]:
-    """High-confidence deterministic annotations for the semantic grader.
-
-    Design rule: this layer may override an LLM only when it has a mathematical
-    proof. In particular, "not globally equivalent to the original equation" is
-    not proof that a line is wrong, because the line may be one branch of a case
-    split. This removes the old false-negative pattern for lines like
-    ``sin x - 1 = 0`` and ``2 sin x + sqrt(2) = 0`` after factorisation.
-    """
+    """High-confidence deterministic annotations for the semantic grader."""
     overrides: dict[str, dict[str, str]] = {}
 
     try:
@@ -98,8 +83,6 @@ def deterministic_reasoning_overrides_ege13(
         if _PART_B_MARKER_RE.search(text):
             in_part_b = True
 
-        # General-solution families remain a high-confidence deterministic check:
-        # every produced value must satisfy the verified original equation.
         families, _, _ = _extract_student_families_from_text(text)
         if families and reference_residual is not None:
             family_errors: list[str] = []
@@ -124,8 +107,6 @@ def deterministic_reasoning_overrides_ege13(
                 }
             continue
 
-        # Explicit roots in part b can be checked directly against the verified
-        # root set. This is a genuine yes/no fact and is safe to override.
         if in_part_b and _INDEXED_ROOT_RE.search(text) and expected_values:
             roots, _ = _parse_last_rhs_root(text)
             parsed: list[sp.Expr] = []
@@ -142,10 +123,34 @@ def deterministic_reasoning_overrides_ege13(
                 }
             continue
 
-        # Ordinary equation lines before part b are annotated only if correctness
-        # is positively proved. Lack of global equivalence is never turned into a
-        # red verdict, because a branch equation is intentionally a subset of the
-        # original solution set.
+        # A compact line like "-13π/4; -3π; -2π" is also a real part-b answer.
+        # Check the whole list against the verified set instead of letting the LLM
+        # call a correct list incomplete by mistake. Interval lines are excluded.
+        if in_part_b and expected_values:
+            lower = text.lower()
+            looks_like_interval = any(token in lower for token in ("[", "]", "≤", "\\le", "<"))
+            has_family = re.search(r"(?i)\bx\s*=", text) is not None
+            if not looks_like_interval and not has_family:
+                roots, _ = _extract_pi_tokens(text)
+                parsed: list[sp.Expr] = []
+                for raw in roots:
+                    try:
+                        parsed.append(_sympify(raw))
+                    except Exception:
+                        pass
+                parsed = _dedupe(parsed)
+                if len(parsed) >= 2:
+                    ok = _same_values(parsed, expected_values)
+                    overrides[sid] = {
+                        "status": "correct" if ok else "incorrect",
+                        "comment": (
+                            "Набор корней пункта б совпадает с проверенным."
+                            if ok
+                            else "Набор корней пункта б не совпадает с проверенным."
+                        ),
+                    }
+                    continue
+
         if not in_part_b and reference_residual is not None and "=" in text and not families:
             try:
                 residual = _extract_part_a_equation(text, "x")
@@ -162,7 +167,5 @@ def deterministic_reasoning_overrides_ege13(
                     "status": "correct",
                     "comment": "Корректная ветвь после разложения произведения на множители.",
                 }
-            # else: deliberately leave the step to the semantic grader. Absence
-            # of proof is not evidence of an error.
 
     return overrides
