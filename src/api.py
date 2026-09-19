@@ -20,10 +20,12 @@ from src.pending_store import (
     save_pending_image,
     save_pending_state,
 )
+from src.progress_store import finish_stage, progress_snapshot, reset_progress, start_stage
 from src.task_registry import list_task_profiles
 from src.tools.core import load_student_history
 from src.tools.ege13_report import report_circle_path
 from src.tools.display_math import latex_to_human_text
+from src.tools.ege13_preflight import validate_ege13_input
 from src.tools.ege13_task_input import (
     build_ege13_task_statement,
     extract_interval_draft,
@@ -35,11 +37,10 @@ from src.tools.ege13_task_input import (
 
 app = FastAPI(
     title="MathCheck AI",
-    version="0.4.14-stage2.9.7.10-ege13-equation-interval-input",
+    version="0.4.15-ege13-preflight-timers",
     description=(
-        "One photo -> Vision transcribes the student's work -> the source equation is extracted from the student's leading line -> "
-        "the human confirms equation, part-b interval and student solution -> grading. "
-        "No printed task statement is required on the photo."
+        "One photo -> Vision transcribes the student's work -> the human confirms equation, interval and OCR -> "
+        "deterministic preflight -> Solver -> verifier -> Grader -> Reviewer."
     ),
 )
 
@@ -52,6 +53,14 @@ class ReviewRequest(BaseModel):
     student_id: str = Field(default="student-001")
     task_type: str = Field(default="ege_13")
     task_statement: str = Field(default="Решите уравнение sin(x)=1/2 и выполните отбор корней на промежутке.")
+
+
+class PreflightRequest(BaseModel):
+    review_id: str = ""
+    task_type: str = "ege_13"
+    confirmed_task_equation: str = ""
+    confirmed_interval: str = ""
+    confirmed_transcript: str = ""
 
 
 class TranscriptConfirmationRequest(BaseModel):
@@ -97,6 +106,14 @@ def _inspect_original_image(image_bytes: bytes) -> dict:
         raise HTTPException(status_code=400, detail=f"Не удалось прочитать изображение: {exc}") from exc
 
 
+def _raise_preflight(checked: dict) -> None:
+    if checked.get("ok"):
+        return
+    issues = checked.get("issues", [])
+    message = "Проверь введённые данные и исправь отмеченные места. Модели ещё не запускались."
+    raise HTTPException(status_code=422, detail={"message": message, "issues": issues})
+
+
 @app.get("/", include_in_schema=False)
 def web_ui():
     if not UI_INDEX_PATH.exists():
@@ -108,12 +125,12 @@ def web_ui():
 def health():
     return {
         "status": "ok",
-        "stage": "2.9.7.10-ege13-equation-interval-input",
+        "stage": "ege13-preflight-timers",
         "ollama_transport": "ndjson-stream-idle-timeout-emergency-ceiling",
         "ollama_connect_timeout_seconds": int(os.getenv("OLLAMA_CONNECT_TIMEOUT_SECONDS", "15")),
         "ollama_idle_timeout_seconds": int(os.getenv("OLLAMA_IDLE_TIMEOUT_SECONDS", "180")),
         "ollama_vision_total_timeout_seconds": int(os.getenv("OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS", "900")),
-        "ollama_text_total_timeout_seconds": int(os.getenv("OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS", "900")),
+        "ollama_text_total_timeout_seconds": int(os.getenv("OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS", "300")),
         "agents": ["vision", "solver", "grader", "reviewer"],
         "langgraph_four_agent_flow": True,
         "vision_solver_parallel": False,
@@ -121,6 +138,8 @@ def health():
         "vision_num_ctx": int(os.getenv("OLLAMA_VISION_NUM_CTX", "16384")),
         "vision_custom_output_cap": False,
         "ollama_phase_telemetry_enabled": True,
+        "stage_progress_endpoint": True,
+        "preflight_before_models": True,
         "grader_single_pass": True,
         "reviewer_single_pass": True,
         "grader_custom_output_cap": False,
@@ -162,6 +181,11 @@ def task_types():
     return {"tasks": list_task_profiles()}
 
 
+@app.get("/api/reviews/{review_id}/progress")
+def review_progress(review_id: str):
+    return progress_snapshot(review_id)
+
+
 @app.get("/api/reviews/{review_id}/report-circle")
 def get_report_circle(review_id: str):
     path = report_circle_path(review_id)
@@ -175,9 +199,29 @@ def student_history(student_id: str, limit: int = 10):
     return {"student_id": student_id, "reviews": load_student_history(student_id, limit=limit)}
 
 
+@app.post("/api/reviews/preflight")
+def review_preflight(payload: PreflightRequest):
+    review_id = payload.review_id.strip()
+    start_stage(review_id, "preflight")
+    try:
+        checked = validate_ege13_input(
+            payload.confirmed_task_equation,
+            payload.confirmed_interval,
+            payload.confirmed_transcript,
+        )
+    finally:
+        finish_stage(review_id, "preflight")
+    checked["progress"] = progress_snapshot(review_id)
+    return checked
+
+
 @app.post("/api/reviews")
 def create_review(payload: ReviewRequest):
-    return review_graph.invoke(_base_state(payload.student_id, payload.task_type, payload.task_statement))
+    state = _base_state(payload.student_id, payload.task_type, payload.task_statement)
+    reset_progress(state["review_id"])
+    result = review_graph.invoke(state)
+    result["stage_timings"] = progress_snapshot(state["review_id"])
+    return result
 
 
 @app.post("/api/reviews/photo")
@@ -198,6 +242,7 @@ async def create_review_from_photo(
 
     image_meta = _inspect_original_image(image_bytes)
     initial_state = _base_state(student_id, task_type, task_statement)
+    reset_progress(initial_state["review_id"])
     save_pending_image(initial_state["review_id"], image_bytes)
     initial_state.update(
         {
@@ -249,6 +294,7 @@ async def create_review_from_photo(
         result["human_confirmation_completed"] = False
         result["transcript_confirmation_source"] = "pending_human"
 
+    result["stage_timings"] = progress_snapshot(initial_state["review_id"])
     if result.get("needs_confirmation", False):
         save_pending_state(initial_state["review_id"], result)
     else:
@@ -259,25 +305,16 @@ async def create_review_from_photo(
 @app.post("/api/reviews/confirm-transcript")
 def confirm_transcript(payload: TranscriptConfirmationRequest):
     confirmed = payload.confirmed_transcript.strip()
-    if not confirmed:
-        raise HTTPException(status_code=400, detail="Подтверждённое решение не может быть пустым.")
-
     equation = payload.confirmed_task_equation.strip()
     interval = normalize_interval_input(payload.confirmed_interval)
 
     if equation or interval:
-        issues = validate_task_fields(payload.task_type, equation, interval)
-        if issues:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "Данные задания подтверждены не полностью: "
-                    + task_fields_issue_message(issues)
-                    + ". Solver ещё не запускался."
-                ),
-            )
-        confirmed_statement = build_ege13_task_statement(equation, interval)
+        checked = validate_ege13_input(equation, interval, confirmed)
+        _raise_preflight(checked)
+        confirmed_statement = checked.get("task_statement") or build_ege13_task_statement(equation, interval)
     else:
+        if not confirmed:
+            raise HTTPException(status_code=400, detail="Подтверждённое решение не может быть пустым.")
         confirmed_statement = (payload.confirmed_task_statement or payload.task_statement).strip()
         if not confirmed_statement:
             raise HTTPException(status_code=400, detail="Нужно подтвердить исходное уравнение и интервал пункта б.")
@@ -325,5 +362,6 @@ def confirm_transcript(payload: TranscriptConfirmationRequest):
     }
     result = post_confirmation_graph.invoke(state)
     result.pop("image_b64", None)
+    result["stage_timings"] = progress_snapshot(payload.review_id)
     delete_pending(payload.review_id)
     return result
