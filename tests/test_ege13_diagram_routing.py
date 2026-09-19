@@ -15,16 +15,16 @@ def test_algebraic_selection_skips_diagram_agent():
     assert route_after_reference(state) == "grade"
 
 
-def test_visual_selection_uses_diagram_agent():
+def test_visual_selection_is_ignored_by_project_scope():
     state = {
         "task_type": "ege_13",
         "image_b64": "ZmFrZQ==",
         "reference_verification_ok": True,
         "confirmed_transcript": "б) Отберём корни с помощью тригонометрической окружности",
     }
-    assert route_after_reference(state) == "diagram"
+    assert route_after_reference(state) == "grade"
 
 
-def test_diagram_reinspection_only_when_requested():
-    assert route_after_diagram_verify({"diagram_reinspection_needed": True}) == "reinspect"
+def test_diagram_compatibility_route_does_not_reinspect():
+    assert route_after_diagram_verify({"diagram_reinspection_needed": True}) == "grade"
     assert route_after_diagram_verify({"diagram_reinspection_needed": False}) == "grade"
