@@ -9,7 +9,7 @@
       "task_equation": "1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)",
       "interval": "[-3π; -3π/2]",
       "pages": [{"page": 10, "crop": [0.03, 0.21, 0.97, 0.63]}],
-      "manual_transcript": ""
+      "manual_transcript": "а) 1 - cos 2x + √2 sin x = √2 - 2 sin(x+π)\n1 - cos²x + sin²x + √2 sin x = √2 - 2(sin x·cos π + sin π·cos x)\n1 - 1 + 2sin²x + √2 sin x = √2 + 2sin x\n2sin²x + √2 sin x - √2 - 2sin x = 0\n2sin x(sin x - 1) + √2(sin x - 1) = 0\n(2sin x + √2)(sin x - 1) = 0\n2sin x + √2 = 0 или sin x - 1 = 0\nsin x = -√2/2 или sin x = 1\nx = (-1)^k·(-π/4) + πk, k ∈ ℤ\nx = π/2 + 2πn, n ∈ ℤ\nб) найдём корни с помощью тригонометрической окружности\nx₁ = -3π + π/4 = -11π/4\nx₂ = -2π - π/4 = -9π/4\nx₃ = -3π/2"
     },
     {
       "id": "13.1.2",
