@@ -17,7 +17,7 @@ def test_interval_recovered_from_visible_part_b_family_inequality():
     б) -3pi <= -3pi/4+2pi*k <= -3pi/2 /:pi
     """
     interval, source = extract_interval_draft(transcript)
-    assert interval == "[-3*pi; -3*pi/2]"
+    assert interval == "[-3pi; -3pi/2]"
     assert source == "visible_selection_inequality"
 
 
@@ -41,7 +41,7 @@ def test_literal_interval_has_priority_over_selection_work():
 
 def test_browser_keeps_previous_result_history():
     html = Path("web/index29710.html").read_text(encoding="utf-8")
-    assert "mathcheck-ege13-result-history-v2" in html
+    assert "mathcheck-ege13-result-history-v3" in html
     assert "archiveCurrentResult()" in html
     assert "Предыдущие проверки" in html
     assert "localStorage.setItem(HISTORY_KEY" in html
