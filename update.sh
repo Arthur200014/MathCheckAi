@@ -27,6 +27,21 @@ pip install -r requirements-eval.txt
 if [ ! -f ".env.local" ]; then
   cp .env.example .env.local
   echo "Создан .env.local из .env.example"
+else
+  # Migrate only the old project defaults. User-custom values are left intact.
+  if grep -q '^OLLAMA_VISION_NUM_CTX=16384$' .env.local; then
+    sed -i.bak 's/^OLLAMA_VISION_NUM_CTX=16384$/OLLAMA_VISION_NUM_CTX=8192/' .env.local
+    rm -f .env.local.bak
+  fi
+  if ! grep -q '^OLLAMA_VISION_NUM_PREDICT=' .env.local; then
+    printf '\nOLLAMA_VISION_NUM_PREDICT=3072\n' >> .env.local
+  fi
+  if ! grep -q '^OLLAMA_VISION_FIRST_CHUNK_TIMEOUT_SECONDS=' .env.local; then
+    printf 'OLLAMA_VISION_FIRST_CHUNK_TIMEOUT_SECONDS=300\n' >> .env.local
+  fi
+  if ! grep -q '^OLLAMA_TEXT_FIRST_CHUNK_TIMEOUT_SECONDS=' .env.local; then
+    printf 'OLLAMA_TEXT_FIRST_CHUNK_TIMEOUT_SECONDS=120\n' >> .env.local
+  fi
 fi
 
 echo "Готовлю локальные eval-изображения из исходного PDF..."
