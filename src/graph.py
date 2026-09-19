@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import re
+
 from langgraph.graph import END, START, StateGraph
 
+from src.agents.diagram_verifier import diagram_final_verifier_node, diagram_verifier_node
+from src.agents.diagram_vision import diagram_reinspect_node, diagram_vision_node
 from src.agents.grader import grader_agent
 from src.agents.persistence import persist_review_node
 from src.agents.reference_verifier import reference_verifier_agent
@@ -48,18 +52,29 @@ def route_after_task_profile(state: ReviewState) -> str:
     return "continue" if state.get("task_profile_ok", False) else "unsupported"
 
 
-def route_post_confirmation(state: ReviewState) -> str:
-    if state.get("solver_model") or state.get("solver_machine_spec"):
-        return "verify_reference"
-    return "solver"
+def _uses_visual_selection(state: ReviewState) -> bool:
+    if state.get("task_type") != "ege_13" or not state.get("image_b64"):
+        return False
+    text = str(state.get("confirmed_transcript") or state.get("transcript") or "").lower()
+    return bool(re.search(r"окруж|дуг|рисунк|графическ|единичн.{0,8}круг|тригонометрическ", text))
 
 
 def route_after_reference(state: ReviewState) -> str:
-    return "grade" if state.get("reference_verification_ok", False) else "review"
+    if not state.get("reference_verification_ok", False):
+        return "review"
+    return "diagram" if _uses_visual_selection(state) else "grade"
+
+
+def route_after_diagram_verify(state: ReviewState) -> str:
+    return "reinspect" if state.get("diagram_reinspection_needed", False) else "grade"
 
 
 def _wire_tail(graph: StateGraph) -> None:
     graph.add_node("verify_reference", _timed("verify_reference", reference_verifier_agent))
+    graph.add_node("diagram_vision", _timed("diagram_vision", diagram_vision_node))
+    graph.add_node("diagram_verify", _timed("diagram_verify", diagram_verifier_node))
+    graph.add_node("diagram_reinspect", _timed("diagram_reinspect", diagram_reinspect_node))
+    graph.add_node("diagram_final_verify", _timed("diagram_final_verify", diagram_final_verifier_node))
     graph.add_node("grader", _timed("grader", grader_agent))
     graph.add_node("reviewer", _timed("reviewer", reviewer_agent))
     graph.add_node("build_report", _timed("build_report", build_user_report_node))
@@ -68,8 +83,16 @@ def _wire_tail(graph: StateGraph) -> None:
     graph.add_conditional_edges(
         "verify_reference",
         route_after_reference,
-        {"grade": "grader", "review": "reviewer"},
+        {"diagram": "diagram_vision", "grade": "grader", "review": "reviewer"},
     )
+    graph.add_edge("diagram_vision", "diagram_verify")
+    graph.add_conditional_edges(
+        "diagram_verify",
+        route_after_diagram_verify,
+        {"reinspect": "diagram_reinspect", "grade": "grader"},
+    )
+    graph.add_edge("diagram_reinspect", "diagram_final_verify")
+    graph.add_edge("diagram_final_verify", "grader")
     graph.add_edge("grader", "reviewer")
     graph.add_edge("reviewer", "build_report")
     graph.add_edge("build_report", "persist_review")
