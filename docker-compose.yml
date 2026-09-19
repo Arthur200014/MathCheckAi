@@ -4,5 +4,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - OLLAMA_MODEL=qwen3-vl:4b
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-qwen3-vl:4b-instruct}
+      OLLAMA_SOLVER_MODEL: ${OLLAMA_SOLVER_MODEL:-qwen3-vl:4b-instruct}
+      OLLAMA_GRADER_MODEL: ${OLLAMA_GRADER_MODEL:-qwen3-vl:4b-instruct}
+      OLLAMA_REVIEWER_MODEL: ${OLLAMA_REVIEWER_MODEL:-qwen3-vl:4b-instruct}
+      OLLAMA_CONNECT_TIMEOUT_SECONDS: ${OLLAMA_CONNECT_TIMEOUT_SECONDS:-15}
+      OLLAMA_IDLE_TIMEOUT_SECONDS: ${OLLAMA_IDLE_TIMEOUT_SECONDS:-180}
+      OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS: ${OLLAMA_VISION_TOTAL_TIMEOUT_SECONDS:-900}
+      OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS: ${OLLAMA_TEXT_TOTAL_TIMEOUT_SECONDS:-300}
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
