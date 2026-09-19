@@ -18,8 +18,6 @@ from src.tools.ege13_reference import (
 )
 
 
-
-
 @dataclass
 class StudentAnswerExtraction:
     final_answer_found: bool
@@ -29,12 +27,7 @@ class StudentAnswerExtraction:
 
 
 def _extract_pi_tokens(text: str) -> tuple[list[str], list[str]]:
-    """Extract explicit pi-valued roots from a compact answer fragment.
-
-    This is intentionally narrow: it is used to lock an explicit final answer,
-    not to reconstruct arbitrary prose. Parsed values are canonicalized through
-    the same tolerant SymPy parser used elsewhere.
-    """
+    """Extract explicit pi-valued roots from a compact answer fragment."""
     raw = str(text or "")
     patterns = [
         r"[-+]?\s*\\frac\s*\{[^{}]*(?:\\pi|π)[^{}]*\}\s*\{[^{}]+\}",
@@ -49,7 +42,6 @@ def _extract_pi_tokens(text: str) -> tuple[list[str], list[str]]:
     values: list[sp.Expr] = []
     errors: list[str] = []
     occupied: list[tuple[int, int]] = []
-    # Prefer longer LaTeX fractions if patterns overlap.
     for start, token in sorted(matches, key=lambda x: (x[0], -len(x[1]))):
         end = start + len(token)
         if any(not (end <= a or start >= b) for a, b in occupied):
@@ -63,28 +55,51 @@ def _extract_pi_tokens(text: str) -> tuple[list[str], list[str]]:
     return [sp.sstr(v) for v in values], errors
 
 
+# OCR sometimes turns the Cyrillic "б" into latin b, d or the digit 6.
+# For d/6 we only accept a marker at the start of a line, so a normal variable
+# inside a formula cannot accidentally create part b.
+_PART_B_MARKER_RE = re.compile(
+    r"(?im)(?:^|\n|\\newline)\s*(?:б|b|d|6)\s*\)"
+)
+_INLINE_PART_B_MARKER_RE = re.compile(r"(?i)(?:б|b)\s*\)")
+_INDEXED_ROOT_RE = re.compile(r"(?i)x_\{?\d+\}?\s*=")
+
+
 def extract_ege13_explicit_final_answer(transcript: str) -> StudentAnswerExtraction:
     """Lock the student's explicit final answer for part b, if present.
 
-    The key safety property is that this extractor never sees the reference
-    answer. Therefore Grader/Reviewer cannot silently repair a student's written
-    final answer to match the reference.
+    A common handwritten form is simply ``Ответ: -13π/4; -3π; -2π`` after the
+    student already started part b above. In that case requiring another literal
+    ``б)`` after the word ``Ответ`` incorrectly makes a completed part b look
+    missing, so the compact root list itself is accepted as student-authored data.
     """
     text = str(transcript or "")
     answer_matches = list(re.finditer(r"(?i)(?:ответ|answer)\s*:??", text))
     if not answer_matches:
         return StudentAnswerExtraction(False, [], "", [])
 
-    tail = text[answer_matches[-1].end():]
-    b_matches = list(re.finditer(r"(?i)(?:б|b)\s*\)", tail))
-    if not b_matches:
-        return StudentAnswerExtraction(True, [], tail.strip(), ["explicit_answer_part_b_marker_not_found"])
+    answer_match = answer_matches[-1]
+    tail = text[answer_match.end():]
+    b_matches = list(_INLINE_PART_B_MARKER_RE.finditer(tail))
+    if b_matches:
+        part_b = tail[b_matches[-1].end():].strip()
+        roots, errors = _extract_pi_tokens(part_b)
+        if not roots:
+            errors.append("explicit_answer_part_b_roots_not_parsed")
+        return StudentAnswerExtraction(True, roots, part_b, errors)
 
-    part_b = tail[b_matches[-1].end():].strip()
-    roots, errors = _extract_pi_tokens(part_b)
-    if not roots:
-        errors.append("explicit_answer_part_b_roots_not_parsed")
-    return StudentAnswerExtraction(True, roots, part_b, errors)
+    # If part b was visibly introduced before the final word "Ответ", a final
+    # compact list of angles belongs to that part. Do not guess when x= families
+    # or part-a labels are still present in the answer tail.
+    before_answer = text[:answer_match.start()]
+    roots, errors = _extract_pi_tokens(tail)
+    has_visible_part_b = _PART_B_MARKER_RE.search(before_answer) is not None
+    tail_has_part_a = re.search(r"(?i)(?:^|\s)(?:а|a)\s*\)", tail) is not None
+    tail_has_family = re.search(r"(?i)\bx\s*=", tail) is not None
+    if has_visible_part_b and roots and not tail_has_part_a and not tail_has_family:
+        return StudentAnswerExtraction(True, roots, tail.strip(), errors)
+
+    return StudentAnswerExtraction(True, [], tail.strip(), ["explicit_answer_part_b_marker_not_found"])
 
 
 @dataclass
@@ -134,19 +149,7 @@ def verify_ege13_student_machine_spec(
     reference_families: list[dict[str, str]],
     expected_roots: list[str],
 ) -> StudentMathVerification:
-    """Deterministically verify machine claims extracted from the student's work.
-
-    The LLM is used only to translate the handwritten/text solution into a compact
-    machine spec. Mathematical truth is checked independently here.
-
-    For common school periodic families we compare the student and reference sets
-    on a wide deterministic window (-12π..12π) and also sample every student
-    family in the original equation. Besides ordinary linear families, the
-    verifier supports the standard trig form (-1)^n*alpha + pi*n by a proven
-    even/odd decomposition. Arbitrary nonlinear parameterisations remain
-    fail-closed. If parsing is impossible, return None and let the grader/reviewer
-    request manual review instead of guessing.
-    """
+    """Deterministically verify machine claims extracted from the student's work."""
     spec = student_spec if isinstance(student_spec, dict) else {}
     results: list[str] = []
     errors: list[str] = []
@@ -255,12 +258,7 @@ def verify_ege13_student_machine_spec(
 
 @dataclass
 class StudentEvidenceExtraction:
-    """Machine-readable facts extracted ONLY from the confirmed student transcript.
-
-    No reference answer, Solver output or Grader output is accepted as input. This
-    is the provenance boundary that prevents an LLM from silently repairing the
-    student's work with the reference solution.
-    """
+    """Machine-readable facts extracted ONLY from the confirmed student transcript."""
 
     part_a_present: bool
     part_b_present: bool
@@ -288,15 +286,25 @@ _FAMILY_ASSIGNMENT_RE = re.compile(
     r"(?P<param>[A-Za-z])\s*(?:\\in|∈)\s*(?:\\mathbb\s*\{\s*Z\s*\}|ℤ|Z)",
     re.IGNORECASE | re.DOTALL,
 )
-_PART_B_MARKER_RE = re.compile(r"(?i)(?:б|b)\s*\)")
-_INDEXED_ROOT_RE = re.compile(r"(?i)x_\{?\d+\}?\s*=")
 
 
 def _clean_family_expr(expr: str) -> str:
     text = str(expr or "").strip()
     text = re.sub(r"(?:\\quad|\\qquad)\s*$", "", text).strip()
     text = text.rstrip(" ,;\\")
+    # Handwritten/OCR school notation usually omits multiplication: nπ, 2nπ.
+    # The generic normalizer would turn nπ into the unknown identifier "npi".
+    text = re.sub(r"(?i)([A-Za-z0-9_)])\s*(\\pi|π)", r"\1*\2", text)
     return text
+
+
+def _strip_trailing_parameter_declaration(expr: str, parameter: str) -> str:
+    """Remove a shared trailing ``n ∈ Z`` that OCR joined to the family."""
+    pattern = (
+        rf"\s*[,;]?\s*{re.escape(parameter)}\s*(?:\\in|∈)\s*"
+        r"(?:\\mathbb\s*\{\s*Z\s*\}|ℤ|Z)\s*$"
+    )
+    return re.sub(pattern, "", str(expr or ""), flags=re.IGNORECASE).strip()
 
 
 def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]], list[str], list[str]]:
@@ -305,9 +313,6 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
     errors: list[str] = []
     seen: set[tuple[str, str]] = set()
 
-    # Parse step-by-step so an occurrence like ``sin x = 1`` can never swallow
-    # later general-solution lines. Inside a cases block one step may contain
-    # several x= assignments, so split each candidate at the next x=.
     for step in split_solution_step_texts(str(text or ""), max_steps=64):
         positions = [m.start() for m in re.finditer(r"(?i)\bx\s*=", step)]
         for idx, pos in enumerate(positions):
@@ -327,9 +332,6 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
                 parameter = match.group("param").strip()
                 source = match.group(0).strip()
             else:
-                # Common school notation writes several x=... families and one
-                # shared ``k in Z`` at the end of the line. Bind that declaration
-                # to every preceding family that actually contains k.
                 shared = list(re.finditer(
                     r"(?i)([A-Za-z])\s*(?:\\in|∈)\s*(?:\\mathbb\s*\{\s*Z\s*\}|ℤ|Z)",
                     step,
@@ -337,9 +339,13 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
                 if not shared:
                     continue
                 parameter = shared[-1].group(1).strip()
-                expr_text = _clean_family_expr(re.sub(r"(?is)^x\s*=\s*", "", segment))
+                expr_text = re.sub(r"(?is)^x\s*=\s*", "", segment)
+                expr_text = _strip_trailing_parameter_declaration(expr_text, parameter)
+                expr_text = _clean_family_expr(expr_text)
                 expr_text = re.sub(r"[,;]\s*$", "", expr_text).strip()
-                if not re.search(rf"\b{re.escape(parameter)}\b", expr_text):
+                # The parameter can touch pi (nπ), so a word-boundary test is too
+                # strict for normal handwritten notation. Check it as a symbol.
+                if not re.search(rf"(?i)(?<![A-Za-z]){re.escape(parameter)}(?![A-Za-z])", expr_text):
                     continue
                 source = segment.strip()
             if not expr_text:
@@ -365,7 +371,6 @@ def _extract_student_families_from_text(text: str) -> tuple[list[dict[str, str]]
 
 
 def _parse_last_rhs_root(step: str) -> tuple[list[str], list[str]]:
-    """Parse the last RHS of x_i=...=root from a part-b step."""
     if not _INDEXED_ROOT_RE.search(step):
         return [], []
     rhs = step.rsplit("=", 1)[-1].strip().rstrip(".;,")
@@ -374,19 +379,12 @@ def _parse_last_rhs_root(step: str) -> tuple[list[str], list[str]]:
 
 
 def extract_ege13_student_evidence(transcript: str) -> StudentEvidenceExtraction:
-    """Extract student-authored mathematical facts without seeing the reference.
-
-    Provenance rule: every returned family/root must be traceable to a literal
-    fragment in ``transcript``. Missing part (b) stays missing; no agent is
-    allowed to synthesize roots for it from the reference solution.
-    """
+    """Extract student-authored mathematical facts without seeing the reference."""
     text = str(transcript or "")
     errors: list[str] = []
     families, family_sources, family_errors = _extract_student_families_from_text(text)
     errors.extend(family_errors)
 
-    # The part markers are intentionally permissive because confirmed OCR can use
-    # Cyrillic/Latin labels. Presence is a textual fact, not an inference.
     part_a_present = bool(re.search(r"(?i)(?:^|\n|\\newline)\s*(?:а|a)\s*\)", text)) or bool(text.strip())
     b_match = _PART_B_MARKER_RE.search(text)
     part_b_present = b_match is not None
@@ -395,8 +393,6 @@ def extract_ege13_student_evidence(transcript: str) -> StudentEvidenceExtraction
     selected_root_sources: list[str] = []
     explicit_used = False
 
-    # Explicit final answer has highest student-side precedence because it is the
-    # student's declared result. This extractor itself still never sees reference.
     answer_lock = extract_ege13_explicit_final_answer(text)
     if answer_lock.final_answer_found and answer_lock.final_part_b_roots:
         selected_roots = list(answer_lock.final_part_b_roots)
@@ -417,7 +413,6 @@ def extract_ege13_student_evidence(transcript: str) -> StudentEvidenceExtraction
                 indexed_sources.append(step)
 
         if indexed_values:
-            # Canonical dedupe through SymPy, preserving only values the student wrote.
             values: list[sp.Expr] = []
             for raw in indexed_values:
                 try:
@@ -428,8 +423,6 @@ def extract_ege13_student_evidence(transcript: str) -> StudentEvidenceExtraction
             selected_roots = [sp.sstr(v) for v in values]
             selected_root_sources = indexed_sources
         else:
-            # Support compact lists such as "б) -11π/4; -9π/4; -3π/2" while
-            # refusing to treat interval inequalities/endpoints as selected roots.
             compact_candidate: tuple[list[str], str] | None = None
             for step in steps:
                 lower = step.lower()
@@ -472,13 +465,7 @@ def deterministic_step_overrides_ege13(
     task_statement: str,
     expected_roots: list[str],
 ) -> dict[str, dict[str, str]]:
-    """Verify high-risk mathematical steps directly from their text.
-
-    This layer intentionally focuses on steps where a false-green verdict is
-    especially harmful: equivalent equation transformations, general solution
-    families and explicit selected roots. It never uses Grader-authored student
-    facts, so LLM omission cannot turn a proven wrong family into "correct".
-    """
+    """Verify high-risk mathematical steps directly from their text."""
     overrides: dict[str, dict[str, str]] = {}
     try:
         reference_residual = _extract_part_a_equation(task_statement, "x")
@@ -501,12 +488,9 @@ def deterministic_step_overrides_ege13(
         text = str(step.get("text", ""))
         if not sid or not text:
             continue
-        if _PART_B_MARKER_RE.search(text):
+        if _PART_B_MARKER_RE.search("\n" + text):
             in_part_b = True
 
-        # General solution families: every value produced by a written family
-        # must solve the original equation. This catches period/sign errors such
-        # as x = pi/2 + pi*n even when a semantic LLM misses them.
         families, _, _ = _extract_student_families_from_text(text)
         if families and reference_residual is not None:
             family_errors: list[str] = []
@@ -531,7 +515,6 @@ def deterministic_step_overrides_ege13(
                 }
             continue
 
-        # Explicit part-b x_i roots can be checked one by one against the verified set.
         if in_part_b and _INDEXED_ROOT_RE.search(text) and expected_values:
             roots, _ = _parse_last_rhs_root(text)
             if roots:
@@ -547,9 +530,6 @@ def deterministic_step_overrides_ege13(
                     overrides[sid] = {"status": "incorrect", "comment": "Указанный корень не совпадает с проверенным множеством пункта б."}
                 continue
 
-        # Before part b, verify full equation transformations when they can be
-        # parsed as an equation equivalent to the original residual. Do not apply
-        # this to split branch equations such as sin x = 1.
         if not in_part_b and reference_residual is not None and "=" in text:
             lower = text.lower()
             is_branch = (
