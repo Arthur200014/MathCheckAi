@@ -20,7 +20,9 @@ rm -rf .venv
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+# requirements-eval.txt includes the normal application requirements and the
+# one extra dependency needed to rebuild the benchmark images from the source PDF.
+pip install -r requirements-eval.txt
 
 if [ ! -f ".env.local" ]; then
   cp .env.example .env.local
