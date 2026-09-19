@@ -1,20 +1,14 @@
-"""Run the same EGE-13 benchmark cases through several local Ollama models.
+"""Benchmark MathCheck AI on expert-labelled EGE-13 works.
 
-The benchmark uses expert-labelled cases from benchmark_cases.json. Vision sees
-only the cropped handwritten solution. The task equation and interval are fixed
-from the expert source so model comparison is not polluted by a leaked printed
-answer.
+The primary benchmark follows the real product flow:
+1) Vision reads the photo;
+2) raw OCR is compared with a human-checked transcript;
+3) the human-checked transcript is used as the confirmed editor value;
+4) Solver -> deterministic reference verifier -> Grader -> Reviewer;
+5) final score is compared with the expert score.
 
-Default models come from src.llm.config.BENCHMARK_VISION_MODELS.
-
-Typical run:
-    python evals/prepare_ege13_images.py
-    python evals/run_ege13_benchmark.py --limit 3
-
-Final run:
-    python evals/run_ege13_benchmark.py
-
-Results are written to evals/results/ as JSON, CSV and Markdown.
+Human editing time is intentionally not included in latency: we compare model/tool
+runtime, while still keeping the mandatory human-confirmation boundary.
 """
 
 from __future__ import annotations
@@ -72,6 +66,21 @@ def _load_cases(path: Path) -> list[dict[str, Any]]:
     return cases
 
 
+def _validate_ground_truth(cases: list[dict[str, Any]]) -> None:
+    missing: list[str] = []
+    for case in cases:
+        if not str(case.get("manual_transcript", "") or "").strip():
+            missing.append(f"{case.get('id')}: manual_transcript")
+        if case.get("expert_score") not in (0, 1, 2):
+            missing.append(f"{case.get('id')}: expert_score")
+        if not isinstance(case.get("expected_key_points"), list):
+            missing.append(f"{case.get('id')}: expected_key_points")
+        if not isinstance(case.get("expected_errors"), list):
+            missing.append(f"{case.get('id')}: expected_errors")
+    if missing:
+        raise SystemExit("Ground truth не заполнен полностью:\n- " + "\n- ".join(missing))
+
+
 def _case_image_paths(case: dict[str, Any], data_dir: Path) -> list[Path]:
     count = len(case.get("pages", []))
     return [data_dir / f"{case['id']}_p{i}.png" for i in range(1, count + 1)]
@@ -93,9 +102,7 @@ def _normalize_text(value: str) -> str:
     return text.strip()
 
 
-def _similarity(actual: str, expected: str) -> float | None:
-    if not str(expected or "").strip():
-        return None
+def _similarity(actual: str, expected: str) -> float:
     return round(SequenceMatcher(None, _normalize_text(actual), _normalize_text(expected)).ratio(), 4)
 
 
@@ -116,8 +123,8 @@ def _model_for_all_agents(model: str):
 
 def _run_vision(case: dict[str, Any], model: str, image_bytes: bytes) -> dict[str, Any]:
     state = {
-        "review_id": f"r-eval-{_slug(str(case['id']))}",
-        "trace_id": f"r-eval-{_slug(str(case['id']))}",
+        "review_id": f"r-eval-vision-{_slug(str(case['id']))}-{_slug(model)}",
+        "trace_id": f"r-eval-vision-{_slug(str(case['id']))}-{_slug(model)}",
         "student_id": "eval",
         "task_type": "ege_13",
         "task_statement": "",
@@ -147,9 +154,9 @@ def _run_confirmed_pipeline(case: dict[str, Any], model: str, transcript: str) -
         "confirmed_transcript": transcript,
         "transcript": transcript,
         "transcript_confirmed": True,
-        "human_confirmation_required": False,
+        "human_confirmation_required": True,
         "human_confirmation_completed": True,
-        "transcript_confirmation_source": "eval_ocr",
+        "transcript_confirmation_source": "eval_human_ground_truth",
         "errors": [],
         "warnings": [],
     }
@@ -178,34 +185,33 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
     missing = [str(path) for path in paths if not path.exists()]
     if missing:
         return {
-            "case_id": case["id"],
-            "model": model,
-            "expert_score": case.get("expert_score"),
-            "ok": False,
-            "error": "missing_images: " + ", ".join(missing),
+            "case_id": case["id"], "model": model, "expert_score": case.get("expert_score"),
+            "ok": False, "error": "missing_images: " + ", ".join(missing),
         }
 
+    manual_transcript = str(case.get("manual_transcript", "") or "").strip()
     started = time.perf_counter()
     try:
         vision = _run_vision(case, model, _image_bytes_for_vision(paths))
-        transcript = str(vision.get("transcript", "") or "").strip()
-        if not transcript:
+        vision_transcript = str(vision.get("transcript", "") or "").strip()
+        if not vision_transcript:
             return {
-                "case_id": case["id"],
-                "model": model,
-                "expert_score": case.get("expert_score"),
-                "ok": False,
-                "vision_ok": False,
-                "vision_seconds": _seconds(vision, "vision"),
+                "case_id": case["id"], "model": model, "expert_score": case.get("expert_score"),
+                "ok": False, "vision_ok": False, "vision_seconds": _seconds(vision, "vision"),
                 "total_seconds": round(time.perf_counter() - started, 3),
                 "error": "; ".join(str(x) for x in vision.get("errors", [])) or "empty_vision_transcript",
             }
 
-        result = _run_confirmed_pipeline(case, model, transcript)
+        confirmed_transcript = manual_transcript
+        similarity = _similarity(vision_transcript, manual_transcript)
+        human_edit_required = _normalize_text(vision_transcript) != _normalize_text(manual_transcript)
+
+        result = _run_confirmed_pipeline(case, model, confirmed_transcript)
         final_score = result.get("final_score")
         expert_score = int(case.get("expert_score", -1))
         score_int = int(final_score) if final_score is not None else None
-        manual = bool(result.get("reviewer_manual_review_required", False) or score_int is None)
+        manual_review = bool(result.get("reviewer_manual_review_required", False) or score_int is None)
+        expected_manual_review = bool(case.get("expected_manual_review", False))
         total = round(time.perf_counter() - started, 3)
 
         return {
@@ -217,12 +223,15 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
             "score_abs_error": abs(score_int - expert_score) if score_int is not None else None,
             "ok": score_int is not None,
             "vision_ok": not bool(vision.get("errors")),
+            "vision_similarity": similarity,
+            "human_edit_required": human_edit_required,
             "reference_ok": bool(result.get("reference_verification_ok", False)),
             "grader_ok": bool(result.get("grader_ok", False)),
             "reviewer_ok": bool(result.get("reviewer_ok", False)),
-            "manual_review": manual,
+            "manual_review": manual_review,
+            "expected_manual_review": expected_manual_review,
+            "manual_review_match": manual_review == expected_manual_review,
             "error_class": result.get("reviewer_error_class") or result.get("grader_error_class") or "",
-            "vision_similarity": _similarity(transcript, str(case.get("manual_transcript", ""))),
             "vision_seconds": _seconds(vision, "vision"),
             "solver_seconds": _seconds(result, "solver"),
             "grader_seconds": _seconds(result, "grader"),
@@ -230,19 +239,19 @@ def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any
             "total_seconds": total,
             "false_error_on_expert_2": bool(expert_score == 2 and (score_int is None or score_int < 2)),
             "positive_score_on_expert_0": bool(expert_score == 0 and score_int is not None and score_int > 0),
-            "transcript": transcript,
+            "vision_transcript": vision_transcript,
+            "confirmed_transcript": confirmed_transcript,
+            "expected_key_points": case.get("expected_key_points", []),
+            "expected_errors": case.get("expected_errors", []),
             "expert_summary": case.get("expert_summary", ""),
             "warnings": result.get("warnings", []),
             "errors": result.get("errors", []),
             "error": "",
         }
-    except Exception as exc:  # benchmark must continue to the next case/model
+    except Exception as exc:
         return {
-            "case_id": case["id"],
-            "model": model,
-            "expert_score": case.get("expert_score"),
-            "ok": False,
-            "total_seconds": round(time.perf_counter() - started, 3),
+            "case_id": case["id"], "model": model, "expert_score": case.get("expert_score"),
+            "ok": False, "total_seconds": round(time.perf_counter() - started, 3),
             "error": f"{type(exc).__name__}: {exc}",
         }
 
@@ -262,16 +271,17 @@ def _summary_for_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
     scored = [row for row in rows if row.get("final_score") is not None]
     score2 = [row for row in rows if row.get("expert_score") == 2]
     score0 = [row for row in rows if row.get("expert_score") == 0]
-    ocr_rows = [row for row in rows if row.get("vision_similarity") is not None]
     return {
         "cases": len(rows),
         "scored_cases": len(scored),
         "score_accuracy": _rate(scored, "score_match"),
         "mean_abs_score_error": _mean(scored, "score_abs_error"),
         "vision_success_rate": _rate(rows, "vision_ok"),
+        "mean_vision_similarity": _mean(rows, "vision_similarity"),
+        "human_correction_rate": _rate(rows, "human_edit_required"),
         "reference_success_rate": _rate(rows, "reference_ok"),
         "manual_review_rate": _rate(rows, "manual_review"),
-        "mean_vision_similarity": _mean(ocr_rows, "vision_similarity"),
+        "manual_review_match_rate": _rate(rows, "manual_review_match"),
         "false_error_rate_on_expert_2": _rate(score2, "false_error_on_expert_2"),
         "positive_score_rate_on_expert_0": _rate(score0, "positive_score_on_expert_0"),
         "avg_total_seconds": _mean(rows, "total_seconds"),
@@ -285,9 +295,10 @@ def _summary_for_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     keys = [
         "case_id", "model", "expert_score", "final_score", "score_match", "score_abs_error",
-        "vision_ok", "reference_ok", "grader_ok", "reviewer_ok", "manual_review", "error_class",
-        "vision_similarity", "vision_seconds", "solver_seconds", "grader_seconds", "reviewer_seconds",
-        "total_seconds", "false_error_on_expert_2", "positive_score_on_expert_0", "error",
+        "vision_ok", "vision_similarity", "human_edit_required", "reference_ok", "grader_ok",
+        "reviewer_ok", "manual_review", "expected_manual_review", "manual_review_match", "error_class",
+        "vision_seconds", "solver_seconds", "grader_seconds", "reviewer_seconds", "total_seconds",
+        "false_error_on_expert_2", "positive_score_on_expert_0", "error",
     ]
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore")
@@ -307,29 +318,26 @@ def _write_markdown(path: Path, summaries: dict[str, dict[str, Any]]) -> None:
     lines = [
         "# EGE-13 model benchmark",
         "",
-        "Score accuracy is exact agreement with the expert score (0/1/2).",
-        "`false_error_rate_on_expert_2` is a conservative hallucination proxy: an expert-perfect work received less than 2.",
-        "OCR similarity is shown only for cases where `manual_transcript` is filled in benchmark_cases.json.",
+        "Primary flow: photo -> Vision measurement -> human-confirmed transcript -> Solver -> verifier -> Grader -> Reviewer.",
+        "Human editing time is excluded from latency; model/tool runtime is included.",
         "",
-        "| Model | Cases | Score accuracy | Mean abs error | Manual review | OCR similarity | Avg total, s |",
+        "| Model | Cases | OCR similarity | Human correction | Score accuracy | Manual-review match | Avg total, s |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for model, summary in summaries.items():
         lines.append(
-            "| " + " | ".join(
-                [
-                    model,
-                    _fmt(summary.get("cases")),
-                    _fmt(summary.get("score_accuracy")),
-                    _fmt(summary.get("mean_abs_score_error")),
-                    _fmt(summary.get("manual_review_rate")),
-                    _fmt(summary.get("mean_vision_similarity")),
-                    _fmt(summary.get("avg_total_seconds")),
-                ]
-            ) + " |"
+            "| " + " | ".join([
+                model,
+                _fmt(summary.get("cases")),
+                _fmt(summary.get("mean_vision_similarity")),
+                _fmt(summary.get("human_correction_rate")),
+                _fmt(summary.get("score_accuracy")),
+                _fmt(summary.get("manual_review_match_rate")),
+                _fmt(summary.get("avg_total_seconds")),
+            ]) + " |"
         )
     lines.append("")
-    lines.append("Full machine-readable metrics are in the matching JSON file.")
+    lines.append("Full per-case data, raw Vision text and confirmed transcripts are in the matching JSON file.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -345,12 +353,14 @@ def main() -> None:
     cases = _load_cases(args.cases)
     if args.limit > 0:
         cases = cases[: args.limit]
+    _validate_ground_truth(cases)
     if not args.models:
         raise SystemExit("Не указаны модели")
 
     args.results_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     print(f"Кейсов: {len(cases)}; моделей: {len(args.models)}")
+    print("Flow: Vision -> human confirmation (ground truth) -> Solver -> verifier -> Grader -> Reviewer")
 
     for model in args.models:
         print(f"\n=== {model} ===")
@@ -359,7 +369,10 @@ def main() -> None:
             row = _run_case(case, model, args.data_dir)
             rows.append(row)
             if row.get("final_score") is not None:
-                print(f"score {row['final_score']}/{row['expert_score']}, {row.get('total_seconds', 0):.1f}s")
+                print(
+                    f"score {row['final_score']}/{row['expert_score']}, "
+                    f"ocr={row.get('vision_similarity', 0):.3f}, {row.get('total_seconds', 0):.1f}s"
+                )
             else:
                 print(f"ERROR: {row.get('error', 'no score')}")
 
@@ -374,7 +387,12 @@ def main() -> None:
     md_path = base.with_suffix(".md")
 
     json_path.write_text(
-        json.dumps({"models": args.models, "summaries": summaries, "rows": rows}, ensure_ascii=False, indent=2),
+        json.dumps({
+            "method": "photo -> Vision metric -> human-confirmed ground truth -> downstream agents",
+            "models": args.models,
+            "summaries": summaries,
+            "rows": rows,
+        }, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     _write_csv(csv_path, rows)
