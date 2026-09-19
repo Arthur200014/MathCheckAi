@@ -5,7 +5,8 @@ from typing import Any, Callable
 import sympy as sp
 
 from src.tools.core import load_criteria, load_student_history, save_report, save_review
-from src.tools.ege13_reference import _equal, _sympify, verify_ege13_reference
+from src.tools.ege13_fast_reference import verify_ege13_reference_fast
+from src.tools.ege13_reference import _equal, _sympify
 from src.tools.ege13_report import render_verified_trig_circle
 
 
@@ -43,7 +44,7 @@ def render_trig_circle(spec: dict[str, Any]) -> str:
 
 
 REFERENCE_VERIFIERS: dict[str, Callable[..., Any]] = {
-    "verify_ege13_reference": verify_ege13_reference,
+    "verify_ege13_reference": verify_ege13_reference_fast,
 }
 
 TOOLS: dict[str, Callable[..., Any]] = {
