@@ -23,6 +23,44 @@ def _split_transcript_steps(transcript: str, *, max_steps: int = 24) -> list[str
     return split_solution_step_texts(transcript, max_steps=max_steps)
 
 
+def _vision_schema() -> dict[str, Any]:
+    """Strict structured-output contract for the OCR pass.
+
+    A plain ``format=json`` still lets some local VLMs drift into long whitespace
+    or partially closed JSON.  A schema keeps the generation constrained to the
+    fields the application actually consumes while leaving the transcript itself
+    unrestricted.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "task_statement_latex": {"type": "string"},
+            "student_transcript_latex": {"type": "string"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "task_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "uncertain_fragments": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 6,
+            },
+            "task_uncertain_fragments": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 6,
+            },
+        },
+        "required": [
+            "task_statement_latex",
+            "student_transcript_latex",
+            "confidence",
+            "task_confidence",
+            "uncertain_fragments",
+            "task_uncertain_fragments",
+        ],
+        "additionalProperties": False,
+    }
+
+
 def evaluate_transcript_gate(
     transcript: str,
     confidence: float,
@@ -175,21 +213,12 @@ def vision_agent(state: ReviewState) -> dict:
 Skill:
 {skill}
 
-Верни ТОЛЬКО один компактный JSON-объект:
-{{
-  "task_statement_latex": "точная транскрипция видимого условия, включая а), б), уравнение и интервал",
-  "student_transcript_latex": "только решение ученика, без повторения условия",
-  "steps": [],
-  "confidence": 0.0,
-  "task_confidence": 0.0,
-  "uncertain_fragments": ["сомнительное место в решении"],
-  "task_uncertain_fragments": ["сомнительное место в условии"]
-}}
+Верни только поля из заданной JSON-схемы.
 
 Правила:
 - Условие и решение перепиши ОДИН РАЗ и раздели между двумя полями.
 - Не повторяй уже переписанные строки и не добавляй рассуждений от себя.
-- `steps` всегда []; шаги строит Python локально после OCR.
+- Шаги отдельно не создавай: их строит Python локально после OCR.
 - В `task_statement_latex` помещай только реально видимое условие; не восстанавливай его по памяти.
 - В `student_transcript_latex` помещай только реально написанное учеником решение, сверху вниз.
 - Русские слова переписывай кириллицей. Не превращай рукописный русский текст в латинскую транслитерацию.
@@ -204,20 +233,19 @@ Skill:
 - Если условие не видно на фотографии, верни `task_statement_latex` = ""; человек заполнит поле вручную.
 """.strip()
 
-    vision_ctx = int(os.getenv("OLLAMA_VISION_NUM_CTX", "16384"))
-    # The old unbounded generation could run for 15 minutes while repeating OCR.
-    # 2048 output tokens is deliberately generous for the EGE-13 handwritten
-    # solutions in this project, while preventing runaway generation. If the
-    # model still hits this ceiling and returns incomplete JSON, the call fails
-    # explicitly and the product falls back to human confirmation; it is never
-    # silently accepted as a complete transcript.
-    vision_num_predict = int(os.getenv("OLLAMA_VISION_NUM_PREDICT", "2048"))
+    # 8k is enough for this fixed OCR contract and avoids the unnecessary KV
+    # cache/memory cost of the previous 16k setting on local Apple hardware.
+    vision_ctx = int(os.getenv("OLLAMA_VISION_NUM_CTX", "8192"))
+    # The schema normally makes the model stop far earlier. 3072 is a generous
+    # emergency ceiling for the longest two-page EGE-13 transcript in the eval
+    # set; if reached, incomplete output fails explicitly instead of being used.
+    vision_num_predict = int(os.getenv("OLLAMA_VISION_NUM_PREDICT", "3072"))
     try:
         result = ollama_chat_json(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             image_b64=image_b64,
-            response_schema=None,
+            response_schema=_vision_schema(),
             num_ctx=vision_ctx,
             num_predict=vision_num_predict,
             use_num_predict_limit=True,
