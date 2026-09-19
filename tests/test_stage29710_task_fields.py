@@ -49,3 +49,21 @@ def test_preflight_requires_equation_and_interval():
     assert validate_task_fields("ege_13", "sin x=1", "[-pi; pi]") == []
     assert "part_b_interval_missing" in validate_task_fields("ege_13", "sin x=1", "")
     assert "task_equation_missing_equals" in validate_task_fields("ege_13", "sin x", "[-pi; pi]")
+
+
+def test_preflight_blocks_ambiguous_trig_argument_before_solver():
+    issues = validate_task_fields(
+        "ege_13",
+        "1-cos 2x + √2 sin x = √2 - 2 sin x (x+π)",
+        "[-3π; -3π/2]",
+    )
+    assert "task_equation_ambiguous_trig_argument" in issues
+
+
+def test_preflight_accepts_explicit_trig_argument():
+    issues = validate_task_fields(
+        "ege_13",
+        "1-cos 2x + √2 sin x = √2 - 2 sin(x+π)",
+        "[-3π; -3π/2]",
+    )
+    assert "task_equation_ambiguous_trig_argument" not in issues
