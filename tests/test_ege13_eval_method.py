@@ -33,8 +33,8 @@ def test_ege13_eval_dataset_is_complete_and_balanced():
         assert case["pages"], case["id"]
 
 
-def test_primary_eval_uses_raw_vision_only_for_ocr_metric_then_human_confirmation(tmp_path, monkeypatch):
-    case = {
+def _demo_case():
+    return {
         "id": "demo",
         "expert_score": 2,
         "expert_summary": "",
@@ -46,6 +46,27 @@ def test_primary_eval_uses_raw_vision_only_for_ocr_metric_then_human_confirmatio
         "expected_errors": [],
         "expected_manual_review": False,
     }
+
+
+def _fake_pipeline(received):
+    def fake(_case, _model, transcript):
+        received["transcript"] = transcript
+        return {
+            "final_score": 2,
+            "reference_verification_ok": True,
+            "grader_ok": True,
+            "reviewer_ok": True,
+            "reviewer_manual_review_required": False,
+            "solver_elapsed_seconds": 1.0,
+            "reference_elapsed_seconds": 0.1,
+            "grader_elapsed_seconds": 1.0,
+            "reviewer_elapsed_seconds": 1.0,
+        }
+    return fake
+
+
+def test_primary_eval_uses_raw_vision_only_for_ocr_metric_then_human_confirmation(tmp_path, monkeypatch):
+    case = _demo_case()
     (tmp_path / "demo_p1.png").write_bytes(b"fake-image")
 
     monkeypatch.setattr(
@@ -59,21 +80,7 @@ def test_primary_eval_uses_raw_vision_only_for_ocr_metric_then_human_confirmatio
     )
 
     received = {}
-
-    def fake_pipeline(_case, _model, transcript):
-        received["transcript"] = transcript
-        return {
-            "final_score": 2,
-            "reference_verification_ok": True,
-            "grader_ok": True,
-            "reviewer_ok": True,
-            "reviewer_manual_review_required": False,
-            "solver_elapsed_seconds": 1.0,
-            "grader_elapsed_seconds": 1.0,
-            "reviewer_elapsed_seconds": 1.0,
-        }
-
-    monkeypatch.setattr(bench, "_run_confirmed_pipeline", fake_pipeline)
+    monkeypatch.setattr(bench, "_run_confirmed_pipeline", _fake_pipeline(received))
 
     row = bench._run_case(case, "demo-model", tmp_path)
 
@@ -82,5 +89,34 @@ def test_primary_eval_uses_raw_vision_only_for_ocr_metric_then_human_confirmatio
     assert row["confirmed_transcript"] == case["manual_transcript"]
     assert row["human_edit_required"] is True
     assert row["vision_similarity"] < 1.0
+    assert row["vision_ok"] is True
+    assert row["final_score"] == 2
+    assert row["score_match"] is True
+
+
+def test_vision_invalid_json_does_not_cancel_human_confirmed_grading(tmp_path, monkeypatch):
+    case = _demo_case()
+    (tmp_path / "demo_p1.png").write_bytes(b"fake-image")
+
+    monkeypatch.setattr(
+        bench,
+        "_run_vision",
+        lambda *_args, **_kwargs: {
+            "transcript": "",
+            "errors": ["vision:OLLAMA_INVALID_JSON"],
+            "vision_elapsed_seconds": 12.0,
+        },
+    )
+
+    received = {}
+    monkeypatch.setattr(bench, "_run_confirmed_pipeline", _fake_pipeline(received))
+
+    row = bench._run_case(case, "demo-model", tmp_path)
+
+    assert received["transcript"] == case["manual_transcript"]
+    assert row["vision_ok"] is False
+    assert row["vision_similarity"] is None
+    assert row["human_edit_required"] is True
+    assert "OLLAMA_INVALID_JSON" in row["vision_error"]
     assert row["final_score"] == 2
     assert row["score_match"] is True
