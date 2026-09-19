@@ -13,6 +13,35 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AUTO_ACCEPT_CONFIDENCE = 0.90
 MANUAL_REVIEW_CONFIDENCE = 0.60
 
+VISION_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "task_statement_latex": {"type": "string"},
+        "student_transcript_latex": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "task_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "uncertain_fragments": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 6,
+        },
+        "task_uncertain_fragments": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 6,
+        },
+    },
+    "required": [
+        "task_statement_latex",
+        "student_transcript_latex",
+        "confidence",
+        "task_confidence",
+        "uncertain_fragments",
+        "task_uncertain_fragments",
+    ],
+    "additionalProperties": False,
+}
+
 
 def _load_text(relative_path: str) -> str:
     return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
@@ -132,9 +161,10 @@ def _telemetry_fields(telemetry: dict[str, Any] | None) -> dict[str, Any]:
 def vision_agent(state: ReviewState) -> dict:
     """One photo, one Vision pass: transcribe task statement and student work.
 
-    The Vision output is a draft only. For photo flows both the extracted task
-    statement and the student transcript must be shown to a human and confirmed
-    before Solver/Grader/Reviewer can run.
+    Vision is an OCR stage, not a reasoning stage.  The transport owns the JSON
+    structure through Ollama's native schema.  The model only has to fill the
+    transcript fields, which avoids making a long handwritten solution compete
+    with hand-written JSON formatting instructions.
     """
     image_b64 = state.get("image_b64")
     statement_hint = state.get("task_statement", "")
@@ -169,55 +199,35 @@ def vision_agent(state: ReviewState) -> dict:
         else ""
     )
     user_prompt = f"""
-На фотографии может быть одновременно напечатанное/написанное УСЛОВИЕ задания и РЕШЕНИЕ ученика.
-Сделай это за ОДИН Vision-проход. Не решай задачу и не исправляй ни условие, ни ученика.
+На фотографии может быть одновременно условие задания и решение ученика.
+Сделай одну буквальную транскрипцию за один Vision-проход.
+Не решай задачу, не исправляй математику и не дописывай отсутствующие шаги.
 {hint_block}
 Skill:
 {skill}
 
-Верни ТОЛЬКО один компактный JSON-объект:
-{{
-  "task_statement_latex": "точная транскрипция видимого условия, включая а), б), уравнение и интервал",
-  "student_transcript_latex": "только решение ученика, без повторения условия",
-  "steps": [],
-  "confidence": 0.0,
-  "task_confidence": 0.0,
-  "uncertain_fragments": ["сомнительное место в решении"],
-  "task_uncertain_fragments": ["сомнительное место в условии"]
-}}
+Заполни поля структурированного ответа:
+- task_statement_latex: только реально видимое условие; если его нет, пустая строка;
+- student_transcript_latex: только реально написанное учеником решение сверху вниз;
+- confidence и task_confidence: числа от 0 до 1;
+- uncertain_fragments и task_uncertain_fragments: только реально сомнительные места, максимум 6.
 
-Правила:
-- Условие и решение перепиши ОДИН РАЗ и раздели между двумя полями.
-- Не повторяй уже переписанные строки и не добавляй рассуждений от себя.
-- `steps` всегда []; шаги строит Python локально после OCR.
-- В `task_statement_latex` помещай только реально видимое условие; не восстанавливай его по памяти.
-- В `student_transcript_latex` помещай только реально написанное учеником решение, сверху вниз.
-- Русские слова переписывай кириллицей. Не превращай рукописный русский текст в латинскую транслитерацию.
-- Если слово или фраза неразборчивы, не придумывай их: сохрани максимально буквальный фрагмент и добавь его в `uncertain_fragments`.
-- Если граница между условием и решением неоднозначна, сохрани видимый текст максимально буквально и отметь сомнение.
-- Не исправляй математику ученика и не дописывай пропущенные шаги.
-- Не исправляй опечатки/ошибки в самом условии — транскрибируй как видно.
-- Используй компактный LaTeX без декоративной разметки и без повторов.
-- Не описывай рисунок или тригонометрическую окружность словами; перепиши только реально видимые рядом подписи/формулы.
-- Строку `Ответ:` перепиши буквально. Не подменяй её правильным ответом.
-- `uncertain_fragments` и `task_uncertain_fragments`: максимум по 6 коротких мест.
-- Если условие не видно на фотографии, верни `task_statement_latex` = ""; человек заполнит поле вручную.
+Дополнительно:
+- русские слова сохраняй кириллицей;
+- строку `Ответ:` перепиши буквально;
+- не описывай рисунок или тригонометрическую окружность словами;
+- не повторяй уже переписанные строки;
+- сохраняй знаки, дроби, π, интервалы и параметры k/n максимально буквально.
 """.strip()
 
     vision_ctx = int(os.getenv("OLLAMA_VISION_NUM_CTX", "16384"))
-    # The old unbounded generation could run for 15 minutes while repeating OCR.
-    # 2048 output tokens is deliberately generous for the EGE-13 handwritten
-    # solutions in this project, while preventing runaway generation. If the
-    # model still hits this ceiling and returns incomplete JSON, the call fails
-    # explicitly and the product falls back to human confirmation; it is never
-    # silently accepted as a complete transcript.
     vision_num_predict = int(os.getenv("OLLAMA_VISION_NUM_PREDICT", "2048"))
     try:
         result = ollama_chat_json(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             image_b64=image_b64,
-            response_schema=None,
+            response_schema=VISION_RESPONSE_SCHEMA,
             num_ctx=vision_ctx,
             num_predict=vision_num_predict,
             use_num_predict_limit=True,
@@ -244,12 +254,8 @@ Skill:
             **gate,
         }
 
-    detected_statement = str(
-        result.get("task_statement_latex", result.get("task_statement", "")) or ""
-    ).strip()
-    transcript = str(
-        result.get("student_transcript_latex", result.get("transcript_latex", "")) or ""
-    ).strip()
+    detected_statement = str(result.get("task_statement_latex", "") or "").strip()
+    transcript = str(result.get("student_transcript_latex", "") or "").strip()
 
     confidence = _as_confidence(result.get("confidence", 0.0))
     task_confidence = _as_confidence(result.get("task_confidence", confidence))
