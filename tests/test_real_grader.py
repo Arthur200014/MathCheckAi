@@ -13,6 +13,38 @@ x=-\frac{\pi}{6}+\pi n, n\in\mathbb{Z}
 Ответ: а) x=-\frac{\pi}{6}+\pi n; б) -\frac{31\pi}{6}"""
 
 
+def _three_family_transcript() -> str:
+    # Keep real line breaks here: browser-confirmed text contains actual newlines,
+    # not the two literal characters backslash+n.
+    return r"""a) x=-\frac{\pi}{4}+2\pi k,\ k\in\mathbb{Z}; x=\frac{\pi}{2}+2\pi n,\ n\in\mathbb{Z}; x=-\frac{3\pi}{4}+2\pi m,\ m\in\mathbb{Z}
+б) x_1=-\frac{11\pi}{4}
+x_2=-\frac{9\pi}{4}
+x_3=-\frac{3\pi}{2}"""
+
+
+def _reference_three_families():
+    return [
+        {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
+        {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
+        {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
+    ]
+
+
+def _semantic_ok(*, manual_review_required=False):
+    return {
+        "can_grade": True,
+        "part_a_status": "correct",
+        "part_b_status": "correct",
+        "overall_sequence_correct_both_parts": True,
+        "error_class": "none",
+        "manual_review_required": manual_review_required,
+        "confidence": 0.98,
+        "checked_step_ids": [],
+        "issue_steps": [],
+        "_model": "test-grader",
+    }
+
+
 def test_student_machine_spec_equivalent_even_if_reference_is_canonicalized():
     out = verify_ege13_student_machine_spec(
         {
@@ -94,24 +126,7 @@ def test_real_grader_correct_current_case_scores_two_and_does_not_return_full_cr
         "reference_expected_roots": ["-31*pi/6"],
         "reference_answer_part_b_verified": r"-\frac{31\pi}{6}",
     }
-    fake = {
-        "can_grade": True,
-        "part_a_status": "correct",
-        "part_b_status": "correct",
-        "overall_sequence_correct_both_parts": True,
-        "error_class": "none",
-        "manual_review_required": False,
-        "confidence": 0.98,
-        "student_machine_spec": {
-            "general_solution_families": [{"expression": "-pi/6 + pi*n", "parameter": "n"}],
-            "selected_roots": ["-31*pi/6"],
-        },
-        "evidence": ["Пункт а решён корректно", "Отбор корней верен"],
-        "feedback": "Решение верное.",
-        "proposed_score": 2,
-        "_model": "test-grader",
-    }
-    with patch("src.agents.grader.ollama_chat_json", return_value=fake):
+    with patch("src.agents.grader.ollama_chat_json", return_value=_semantic_ok()):
         out = grader_agent(state)
 
     assert out["grader_ok"] is True
@@ -130,13 +145,9 @@ def test_real_grader_diagram_error_overrides_text_only_score_two_to_one():
         "task_statement": task,
         "task_profile": profile.model_dump(),
         "task_max_score": 2,
-        "confirmed_transcript": r"""a) x=-\frac{\pi}{4}+2\pi k,\ k\in\mathbb{Z}; x=\frac{\pi}{2}+2\pi n,\ n\in\mathbb{Z}; x=-\frac{3\pi}{4}+2\pi m,\ m\in\mathbb{Z}\nб) x_1=-\frac{11\pi}{4}\nx_2=-\frac{9\pi}{4}\nx_3=-\frac{3\pi}{2}""",
+        "confirmed_transcript": _three_family_transcript(),
         "reference_answer_part_a_verified": "verified",
-        "reference_verified_families": [
-            {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-            {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-            {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-        ],
+        "reference_verified_families": _reference_three_families(),
         "reference_expected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
         "reference_answer_part_b_verified": "verified",
         "diagram_method_used": True,
@@ -148,28 +159,7 @@ def test_real_grader_diagram_error_overrides_text_only_score_two_to_one():
         ],
         "diagram_verification_results": ["diagram_claimed_root_set_matches_reference:true"],
     }
-    fake = {
-        "can_grade": True,
-        "part_a_status": "correct",
-        "part_b_status": "correct",  # deliberately wrong text-only judgment
-        "overall_sequence_correct_both_parts": True,
-        "error_class": "none",
-        "manual_review_required": False,
-        "confidence": 0.98,
-        "student_machine_spec": {
-            "general_solution_families": [
-                {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-                {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-                {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-            ],
-            "selected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
-        },
-        "evidence": ["text root set looks correct"],
-        "feedback": "text-only pass",
-        "proposed_score": 2,
-        "_model": "test-grader",
-    }
-    with patch("src.agents.grader.ollama_chat_json", return_value=fake):
+    with patch("src.agents.grader.ollama_chat_json", return_value=_semantic_ok()):
         out = grader_agent(state)
 
     assert out["grader_ok"] is True
@@ -190,13 +180,9 @@ def test_real_grader_unreadable_diagram_but_confirmed_math_still_scores_two():
         "task_statement": task,
         "task_profile": profile.model_dump(),
         "task_max_score": 2,
-        "confirmed_transcript": r"""a) x=-\frac{\pi}{4}+2\pi k,\ k\in\mathbb{Z}; x=\frac{\pi}{2}+2\pi n,\ n\in\mathbb{Z}; x=-\frac{3\pi}{4}+2\pi m,\ m\in\mathbb{Z}\nб) x_1=-\frac{11\pi}{4}\nx_2=-\frac{9\pi}{4}\nx_3=-\frac{3\pi}{2}""",
+        "confirmed_transcript": _three_family_transcript(),
         "reference_answer_part_a_verified": "verified",
-        "reference_verified_families": [
-            {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-            {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-            {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-        ],
+        "reference_verified_families": _reference_three_families(),
         "reference_expected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
         "reference_answer_part_b_verified": "verified",
         "diagram_method_used": True,
@@ -205,28 +191,10 @@ def test_real_grader_unreadable_diagram_but_confirmed_math_still_scores_two():
         "diagram_verification_issues": ["uncertain:handwritten labels unreadable"],
         "diagram_verification_results": ["diagram_final_unverified_no_automatic_penalty"],
     }
-    fake = {
-        "can_grade": True,
-        "part_a_status": "correct",
-        "part_b_status": "correct",
-        "overall_sequence_correct_both_parts": True,
-        "error_class": "none",
-        "manual_review_required": True,
-        "confidence": 0.98,
-        "student_machine_spec": {
-            "general_solution_families": [
-                {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-                {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-                {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-            ],
-            "selected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
-        },
-        "evidence": ["корни пункта б извлечены из текста"],
-        "feedback": "математика подтверждена",
-        "proposed_score": 2,
-        "_model": "test-grader",
-    }
-    with patch("src.agents.grader.ollama_chat_json", return_value=fake):
+    with patch(
+        "src.agents.grader.ollama_chat_json",
+        return_value=_semantic_ok(manual_review_required=True),
+    ):
         out = grader_agent(state)
 
     assert out["grader_ok"] is True
@@ -252,40 +220,14 @@ x = (-1)^k*(-\frac{\pi}{4})+\pi k, k\in\mathbb{Z}; x=\frac{\pi}{2}+2\pi n, n\in\
         "task_max_score": 2,
         "confirmed_transcript": transcript,
         "reference_answer_part_a_verified": "verified",
-        "reference_verified_families": [
-            {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-            {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-            {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-        ],
+        "reference_verified_families": _reference_three_families(),
         "reference_expected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
         "reference_answer_part_b_verified": "verified",
         "diagram_method_used": True,
         "diagram_verification_status": "DIAGRAM_UNVERIFIED_AFTER_REINSPECTION",
         "diagram_part_b_valid": None,
     }
-    fake = {
-        "can_grade": True,
-        "part_a_status": "correct",
-        "part_b_status": "correct",
-        "overall_sequence_correct_both_parts": True,
-        "error_class": "none",
-        "manual_review_required": False,
-        "confidence": 0.98,
-        "student_machine_spec": {
-            "general_solution_families": [
-                {"expression": "pi*(4*n + 1)/2", "parameter": "n"},
-                {"expression": "pi*(8*n + 5)/4", "parameter": "n"},
-                {"expression": "pi*(8*n + 7)/4", "parameter": "n"},
-            ],
-            # Deliberately "repaired" by the LLM; the transcript lock must replace this.
-            "selected_roots": ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
-        },
-        "evidence": ["LLM thought the root list was correct"],
-        "feedback": "LLM text-only pass",
-        "proposed_score": 2,
-        "_model": "test-grader",
-    }
-    with patch("src.agents.grader.ollama_chat_json", return_value=fake):
+    with patch("src.agents.grader.ollama_chat_json", return_value=_semantic_ok()):
         out = grader_agent(state)
 
     assert out["grader_student_answer_lock_applied"] is True
@@ -314,7 +256,13 @@ def test_grader_never_retries_malformed_json_and_preserves_error_telemetry():
     }
     failure = OllamaError(
         "Модель вернула невалидный JSON: truncated",
-        telemetry={"wall_seconds": 42.5, "partial_output_chars": 1234, "output_tokens": 321, "done_reason": "length", "model": "test-grader"},
+        telemetry={
+            "wall_seconds": 42.5,
+            "partial_output_chars": 1234,
+            "output_tokens": 321,
+            "done_reason": "length",
+            "model": "test-grader",
+        },
         code="OLLAMA_INVALID_JSON",
     )
     with patch("src.agents.grader.ollama_chat_json", side_effect=failure) as mocked:
@@ -354,9 +302,8 @@ def test_grader_prompt_contains_immutable_final_answer_lock_before_llm():
         "error_class": "ambiguous",
         "manual_review_required": True,
         "confidence": 0.5,
-        "student_machine_spec": {"general_solution_families": [], "selected_roots": []},
-        "step_assessments": [],
-        "proposed_score": 0,
+        "checked_step_ids": [],
+        "issue_steps": [],
         "_model": "test-grader",
     }
     with patch("src.agents.grader.ollama_chat_json", return_value=fake) as mocked:
