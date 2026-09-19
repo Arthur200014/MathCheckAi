@@ -24,10 +24,10 @@ def test_interval_is_never_invented_when_missing():
     assert source == "empty"
 
 
-def test_visible_interval_is_reused_as_draft():
+def test_visible_interval_is_reused_as_human_readable_draft():
     transcript = r"б) x\in[-3\pi; -3\pi/2]"
     interval, source = extract_interval_draft(transcript, "")
-    assert interval == r"[-3\pi; -3\pi/2]"
+    assert interval == "[-3π; -3π/2]"
     assert source == "visible_interval"
 
 
