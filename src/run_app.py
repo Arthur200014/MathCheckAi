@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 from src import api
+from src import extra_api  # noqa: F401  # registers saved-review/metrics endpoints
 from src import multi_photo_api  # noqa: F401  # registers /api/reviews/photos
 
 
