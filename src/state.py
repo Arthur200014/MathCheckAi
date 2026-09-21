@@ -9,6 +9,8 @@ class ReviewState(TypedDict, total=False):
     detected_task_statement: str
     original_task_statement: str
     confirmed_task_statement: str
+    confirmed_task_equation: str
+    confirmed_interval: str
     task_statement_confidence: float
     task_uncertain_fragments: list[str]
     task_statement_confirmation_source: str
