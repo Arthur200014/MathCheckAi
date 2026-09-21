@@ -118,6 +118,23 @@ function showScanDebug(response=null,error=null){const data={request:st.lastScan
     new_scan = "$('scanBtn').addEventListener('click',async()=>{const files=(st.files&&st.files.length?st.files:[st.file]).filter(Boolean);if(!files.length)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText',files.length===1?'Распознаю работу':`Распознаю ${files.length} фото одним проходом`);st.lastScanRequest=scanRequestInfo(files);showScanDebug();try{const fd=new FormData();files.forEach(f=>fd.append('images',f));fd.append('student_id',$('studentId').value.trim()||'student-local');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photos',{method:'POST',body:fd}));st.ocr=d;showScanDebug(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){showScanDebug(st.ocr,e);toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
     source = _replace_once(source, old_scan, new_scan, "scan click")
 
+    # На финальном этапе показываем не только ответ, но и точный payload,
+    # отправленный после ручного подтверждения. Это позволяет сразу отличить
+    # ошибку модели от ситуации, когда браузер отправил старое значение поля.
+    confirm_payload = "const task=buildTask(eq,iv);const payload={review_id:st.ocr.review_id,student_id:$('studentId').value.trim()||st.ocr.student_id||'student-001',task_type:'ege_13',confirmed_task_equation:eq,confirmed_interval:iv,task_statement:task,confirmed_task_statement:task,original_task_statement:st.ocr.original_task_statement||'',original_transcript:st.ocr.original_transcript||st.ocr.transcript||'',confirmed_transcript:sol};busy('gradeStatus','gradeStatusText','Проверяю решение');"
+    source = _replace_once(
+        source,
+        confirm_payload,
+        confirm_payload.replace(";busy('gradeStatus'", ";$('finalJson').textContent=pretty({request:payload});busy('gradeStatus'"),
+        "confirm request debug",
+    )
+    source = _replace_once(
+        source,
+        "stopProgressPolling();st.final=d;st.currentArchived=false;$('finalJson').textContent=pretty(d);",
+        "stopProgressPolling();st.final=d;st.currentArchived=false;$('finalJson').textContent=pretty({request:payload,response:d});",
+        "confirm response debug",
+    )
+
     output = Path(tempfile.gettempdir()) / "mathcheck-index.html"
     output.write_text(source, encoding="utf-8")
     return output
