@@ -53,9 +53,9 @@ def route_after_task_profile(state: ReviewState) -> str:
 
 
 def route_after_reference(state: ReviewState) -> str:
-    if not state.get("reference_verification_ok", False):
-        return "review"
-    # Student trig-circle drawings are outside the current MVP.
+    # A human-confirmed EGE-13 solution must always reach Grader and receive a
+    # score. Reference verification is strong evidence when available, but a
+    # verifier limitation is an advisory condition, not a reason to skip grading.
     return "grade"
 
 
@@ -74,7 +74,7 @@ def _wire_tail(graph: StateGraph) -> None:
     graph.add_conditional_edges(
         "verify_reference",
         route_after_reference,
-        {"grade": "grader", "review": "reviewer"},
+        {"grade": "grader"},
     )
     graph.add_edge("grader", "reviewer")
     graph.add_edge("reviewer", "build_report")
