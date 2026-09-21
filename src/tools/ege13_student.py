@@ -19,7 +19,10 @@ from src.tools.ege13_reference import (
 _SUBSCRIPT_TRANS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _PARAM = r"[A-Za-z][A-Za-z0-9]*"
 _MEMBERSHIP = r"(?:\\in|∈|∊)\s*(?:\\mathbb\s*\{\s*Z\s*\}|ℤ|Z)"
-_PART_B_RE = re.compile(r"(?im)(?:^|\n|\\newline)\s*(?:б|b|d|6)\s*(?:\)|\.|:|[-—])(?=\s|$)")
+# OCR/user edits often produce compact markers such as "b)на ..." with no
+# whitespace after the marker. The marker is already anchored to a line start,
+# so requiring a following space only makes valid part-b text disappear.
+_PART_B_RE = re.compile(r"(?im)(?:^|\n|\\newline)\s*(?:б|b|d|6)\s*(?:\)|\.|:|[-—])")
 _INLINE_B_RE = re.compile(r"(?i)(?:б|b)\s*(?:\)|\.|:)")
 _INDEXED_ROOT_RE = re.compile(r"(?i)x(?:_?\{?\d+\}?|\d+)\s*=")
 _ENUM_ROOT_RE = re.compile(r"^\s*(?:\(?\d+\)?|[①②③④⑤⑥])\s*(?:[:.)-])?")
@@ -39,7 +42,7 @@ def _split_parts(text: str) -> tuple[str, str, re.Match[str] | None]:
     value = _normalize(text)
     marker = _PART_B_RE.search(value)
     if marker is None:
-        marker = re.search(r"(?i)(?:^|[\s.;])(?:б|b)\s*(?:\)|\.|:)(?=\s|$)", value)
+        marker = re.search(r"(?i)(?:^|[\s.;])(?:б|b)\s*(?:\)|\.|:)", value)
     if marker is None:
         return value, "", None
     return value[:marker.start()].strip(), value[marker.end():].strip(), marker
