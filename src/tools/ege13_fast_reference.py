@@ -5,6 +5,7 @@ from typing import Any
 
 import sympy as sp
 
+from src.tools import ege13_reference as _reference_math
 from src.tools.ege13_reference import (
     ReferenceVerification,
     _canonicalize_periodic_families,
@@ -19,6 +20,13 @@ from src.tools.ege13_reference import (
     _verify_family_samples,
 )
 
+# Exact school trig equations do not always reduce to special angles.  Keep
+# inverse-trig constants parseable by the shared deterministic family pipeline.
+_reference_math.SAFE_LOCALS.update({
+    "asin": sp.asin,
+    "acos": sp.acos,
+    "atan": sp.atan,
+})
 
 _TRIG_FUNCS = (sp.sin, sp.cos, sp.tan)
 
@@ -46,13 +54,15 @@ def _center_linear_family(expr: sp.Expr, parameter: sp.Symbol) -> sp.Expr:
 
 
 def _machine_friendly_family(expr: sp.Expr, parameter: sp.Symbol) -> bool:
-    """Keep families parseable by the rest of the deterministic pipeline."""
+    """Keep exact linear families parseable by the deterministic pipeline."""
     if parameter not in expr.free_symbols:
         return False
     other = expr.free_symbols - {parameter}
     if other:
         return False
-    if any(expr.has(fn) for fn in (sp.asin, sp.acos, sp.atan, sp.Mod)):
+    # asin/acos/atan of exact constants are safe and remain linear in the integer
+    # parameter. Mod is not accepted because it breaks deterministic enumeration.
+    if expr.has(sp.Mod):
         return False
     return True
 
