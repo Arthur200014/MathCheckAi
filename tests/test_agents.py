@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from src.agents.vision import evaluate_transcript_gate, vision_agent
-from src.graph import route_after_vision
+from src.graph import route_after_reference, route_after_vision
 
 
 def test_high_confidence_photo_ocr_still_requires_human_confirmation():
@@ -60,3 +60,8 @@ def test_real_vision_ignores_model_needs_confirmation_field():
 def test_graph_router_stops_unconfirmed_transcript():
     assert route_after_vision({"needs_confirmation": True, "transcript_confirmed": False}) == "stop_for_confirmation"
     assert route_after_vision({"needs_confirmation": False, "transcript_confirmed": True}) == "solver"
+
+
+def test_reference_failure_still_goes_to_grader():
+    assert route_after_reference({"reference_verification_ok": False}) == "grade"
+    assert route_after_reference({"reference_verification_ok": True}) == "grade"
