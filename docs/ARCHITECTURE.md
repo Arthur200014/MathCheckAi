@@ -1,88 +1,88 @@
-# MathCheck AI — ЕГЭ №13 architecture
+# MathCheck AI — архитектура ЕГЭ №13
 
-## Runtime flow
+## Основной поток выполнения
 
 ```mermaid
 flowchart LR
-    U[1-8 photos of one solution] --> MP[Multi-photo input]
-    MP --> V[Vision Agent: one pass]
-    V --> H[Human OCR editor]
-    H --> P{Deterministic preflight}
-    P -- fix fields --> H
-    P -- ok --> S[Solver Agent]
-    S --> R[Fast deterministic reference verifier / SymPy]
+    U[1–8 фото одной работы] --> MP[Обработка нескольких фото]
+    MP --> V[Vision Agent: один проход]
+    V --> H[Редактор OCR с подтверждением человеком]
+    H --> P{Детерминированный preflight}
+    P -- исправить поля --> H
+    P -- всё корректно --> S[Solver Agent]
+    S --> R[Быстрый детерминированный verifier / SymPy]
     R --> G[Grader Agent]
     G --> Q[Reviewer Agent]
-    Q --> B[Deterministic report builder]
-    B --> M[SQLite memory + report]
+    Q --> B[Детерминированная сборка отчёта]
+    B --> M[SQLite: история + отчёт]
 ```
 
-For one image Vision receives the original uploaded bytes. For several images the server builds one ordered page sheet and sends it to Vision in one model call. This avoids N sequential Vision calls for an N-page solution.
+Если загружено одно изображение, Vision получает исходные байты файла без дополнительной переработки. Если страниц несколько, сервер собирает их в один упорядоченный лист и отправляет в Vision одним вызовом. Это позволяет не делать отдельный последовательный Vision-вызов для каждой страницы.
 
-The mathematical grading tail is intentionally sequential on the local Mac because Solver, Grader and Reviewer share one local accelerator. Human confirmation and deterministic preflight happen before Solver is allowed to run.
+Математическая часть после подтверждения выполняется последовательно. Solver, Grader и Reviewer используют один локальный ускоритель, а результаты следующих этапов зависят от предыдущих. Human confirmation и детерминированный preflight обязательно выполняются до запуска Solver.
 
-## Four agent responsibilities
+## Ответственность четырёх агентов
 
-1. **Vision Agent** — one Vision call -> draft task text/student transcript + OCR uncertainty metadata. It transcribes and does not grade the student.
-2. **Solver Agent** — confirmed task equation + interval -> independent reference solution. It never receives the student's solution as solving evidence.
-3. **Grader Agent** — confirmed student transcript + verified reference + criteria -> error classification and draft score. Student evidence is source-locked to the confirmed transcript.
-4. **Reviewer Agent** — one-pass consistency audit of the deterministic score and Grader output. It may add an advisory but cannot silently replace the deterministic score.
+1. **Vision Agent** — делает один Vision-вызов и формирует черновик условия, текста решения ученика и служебные данные о качестве OCR. Он только распознаёт работу и не выставляет балл.
+2. **Solver Agent** — получает подтверждённое условие и интервал и строит независимое эталонное решение. Решение ученика не используется им как основание для решения.
+3. **Grader Agent** — получает подтверждённый текст ученика, проверенный эталон и критерии, после чего определяет ошибки и формирует результат оценивания. Факты о работе ученика берутся только из подтверждённого текста.
+4. **Reviewer Agent** — выполняет итоговую проверку непротиворечивости результата Grader и детерминированно рассчитанного балла. Он может добавить предупреждение, но не должен незаметно заменять итоговый балл своим решением.
 
-LangGraph carries the shared `ReviewState`. A separate Supervisor Agent is intentionally not used because the flow is fixed and auditable.
+LangGraph передаёт общий `ReviewState` между узлами. Отдельный Supervisor Agent не используется, потому что маршрут проверки заранее известен и должен оставаться прозрачным.
 
-## Human-confirmed source boundary
+## Граница доверия после подтверждения человеком
 
-Vision output is always a draft. The browser displays the source photo(s) and three editable fields:
+Результат Vision всегда считается черновиком. В браузере пользователь видит исходные фотографии и три редактируемых поля:
 
 - `confirmed_task_equation`;
 - `confirmed_interval`;
 - `confirmed_transcript`.
 
-The preflight validates the confirmed equation/interval and obvious OCR-structure problems before any Solver/Grader/Reviewer call. If preflight fails, the user remains in the same editor, corrects the field and checks again.
+Preflight проверяет подтверждённое уравнение, интервал и очевидные структурные ошибки OCR до любого вызова Solver, Grader или Reviewer. Если проверка не пройдена, пользователь остаётся в том же редакторе, исправляет данные и запускает проверку повторно.
 
-After confirmation, the source of truth is exactly those confirmed fields. The interval is never reconstructed from the correct answer and the student's mathematics is never auto-corrected before grading.
+После подтверждения источником истины становятся только эти поля. Интервал не восстанавливается из правильного ответа, а математика ученика не исправляется автоматически перед оцениванием.
 
-## Deterministic tools / nodes
+## Детерминированные инструменты и узлы
 
-These are tools/nodes, not additional agents:
+Эти компоненты являются tools/nodes, а не дополнительными LLM-агентами:
 
-- task profile loader;
-- EGE-13 input preflight;
-- criteria loader;
-- expression/family/root parsers;
-- fast SymPy reference verifier;
-- source-locked student evidence extractor;
-- deterministic EGE-13 rubric score;
-- trig-circle renderer;
-- report builder;
-- SQLite review/history/report persistence.
+- загрузчик профиля задания;
+- preflight для задания №13;
+- загрузчик критериев;
+- парсеры выражений, семейств решений и корней;
+- быстрый verifier на SymPy;
+- извлечение фактов только из подтверждённого решения ученика;
+- детерминированный расчёт балла по критериям №13;
+- построение тригонометрической окружности;
+- сборщик отчёта;
+- сохранение проверки, истории и отчёта в SQLite.
 
-## Runtime / latency rules
+## Правила выполнения и измерения времени
 
-- Multiple pages are processed in one Vision call.
-- One-page input keeps original bytes; multi-page input is stitched in page order with bounded width for reasonable local Vision latency.
-- Ollama transport uses NDJSON streaming with separate connect, idle and emergency total deadlines.
-- Partial/truncated agent JSON is never accepted as a valid response.
-- Grader and Reviewer are single-pass: no hidden retry loop.
-- A progress store measures Vision, preflight, Solver, reference verification, Grader, Reviewer, report building and persistence separately.
-- Solver/Grader/Reviewer start only after human confirmation and successful preflight.
+- Несколько страниц обрабатываются одним Vision-вызовом.
+- Для одной страницы используются исходные байты; несколько страниц объединяются по порядку с ограничением ширины, чтобы не раздувать локальный Vision-вызов.
+- Ollama использует потоковый NDJSON-ответ с отдельными ограничениями времени на подключение, простой и общий вызов.
+- Частичный или оборванный JSON агента никогда не принимается как корректный ответ.
+- Grader и Reviewer выполняются за один проход без скрытого цикла повторных запросов.
+- Отдельно измеряется время Vision, preflight, Solver, verifier, Grader, Reviewer, сборки отчёта и сохранения.
+- Solver, Grader и Reviewer запускаются только после human confirmation и успешного preflight.
 
-## Reliability rules for №13
+## Правила надёжности для задания №13
 
-- Ambiguous OCR such as `sin x (x+π)` is blocked before Solver until the human makes the meaning explicit.
-- The reference verifier uses bounded/fast symbolic transformations instead of an unrestricted full trigonometric `solveset` call.
-- OCR variants of the heading for part б (`б)`, `b)`, observed `d)`/`6)`) are normalized only for section detection; the student's mathematical content is preserved.
-- Explicit final roots from part б are checked deterministically against verified interval roots.
+- Неоднозначная OCR-запись вроде `sin x (x+π)` блокируется до Solver, пока пользователь явно не уточнит её смысл.
+- Reference Verifier использует ограниченные и быстрые символьные преобразования вместо неограниченного полного вызова тригонометрического `solveset`.
+- Варианты распознавания заголовка пункта б) (`б)`, `b)`, а также встречавшиеся `d)` и `6)`) нормализуются только для определения раздела; математическая запись ученика при этом не меняется.
+- Явно записанные учеником корни пункта б) детерминированно сравниваются с проверенным набором корней на интервале.
 
-## Persistence and observability
+## Сохранение данных и observability
 
-- SQLite stores review/history data.
-- Local JSONL records LLM telemetry and slow-call alerts.
-- Browser UI shows per-stage elapsed time during a review.
-- The final observability stage adds a trace/metrics layer for the academic report while keeping JSON logs as an independent local source.
+- SQLite хранит данные проверок и историю.
+- Локальные JSONL-файлы содержат telemetry LLM-вызовов и события о слишком долгих запросах.
+- В интерфейсе показывается время каждого этапа текущей проверки.
+- Для отчёта также сохраняются traces и metrics, при этом JSONL остаётся независимым локальным источником событий.
 
-## Diagrams
+## Диаграммы ученика
 
-Student-drawn diagram verification is outside the runtime MVP because it adds another expensive Vision pass. The final report can still render a deterministic, mathematically verified reference trigonometric circle from the verified answer.
+Проверка нарисованной учеником тригонометрической окружности не входит в активный runtime MVP, потому что потребовала бы ещё одного дорогого Vision-вызова. При этом итоговый отчёт может построить детерминированную эталонную окружность по уже проверенному ответу.
 
-See also `docs/C4.md` and `docs/sequence.mmd`.
+См. также `docs/C4.md` и `docs/sequence.mmd`.
