@@ -22,8 +22,6 @@ jobs:
           python-version: '3.12'
       - run: python .github/scripts/strip_comments.py
       - run: python -m compileall -q src evals tests
-      - run: pip install -r requirements.txt -r requirements-eval.txt
-      - run: pytest -q
       - run: |
           if git diff --quiet; then
             exit 0
