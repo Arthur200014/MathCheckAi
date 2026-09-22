@@ -1,0 +1,30 @@
+name: fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/add_fix_markers.py'
+      - '.github/workflows/add-fix-markers.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python .github/scripts/add_fix_markers.py
+      - run: python -m compileall -q src evals tests
+      - run: |
+          git config user.name "Arthur200014"
+          git config user.email "103813672+Arthur200014@users.noreply.github.com"
+          git add -A
+          git commit -m "fix"
+          git push origin main
