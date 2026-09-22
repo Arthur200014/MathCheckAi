@@ -1,5 +1,5 @@
 from src.tools.ege13_student import extract_ege13_student_evidence
-from src.tools.ege13_user_report_exact import build_user_report_node
+from src.tools.ege13_user_report import build_user_report_node
 
 
 TRANSCRIPT = """а) (1 - 2sin² x) + √2 sin x - 1 = 0
@@ -51,3 +51,4 @@ def test_equivalent_pi_n_family_does_not_get_fake_period_comment():
     assert report["part_b_comment"] == "Верно."
     assert report["expert_comment"] == "Решение верное."
     assert not any(item.get("section") == "а" for item in report["expert_comments"])
+# fix
