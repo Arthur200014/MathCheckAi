@@ -1,11 +1,11 @@
-"""Small Stage-2 smoke benchmark for Vision models.
 
-This is NOT the final Day-3 eval yet. It proves that the same Ollama client can
-run multiple models without changing agent code.
 
-Usage (after downloading the models you want to test):
-    python evals/compare_models.py path/to/photo.jpg
-"""
+
+
+
+
+
+
 
 import argparse
 import base64

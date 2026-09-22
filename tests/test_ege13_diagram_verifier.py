@@ -52,7 +52,7 @@ def test_case_b_swapped_point_labels_is_diagram_error_even_if_root_set_matches()
     assert result.part_b_valid is False
     assert any("diagram_point_value_mismatch:id=1" in x for x in result.issues)
     assert any("diagram_point_value_mismatch:id=2" in x for x in result.issues)
-    # Important: the unordered set itself is still correct, but correspondence isn't.
+                                                                                     
     assert "diagram_claimed_root_set_matches_reference:true" in result.results
 
 
@@ -97,7 +97,7 @@ def test_rubric_scores_one_for_correct_a_and_invalid_diagram_even_if_roots_match
     llm = {
         "can_grade": True,
         "part_a_status": "correct",
-        "part_b_status": "correct",  # text-only LLM may miss the diagram error
+        "part_b_status": "correct",                                            
         "overall_sequence_correct_both_parts": True,
         "error_class": "none",
         "manual_review_required": False,
@@ -122,7 +122,7 @@ def test_rubric_unreadable_circle_does_not_block_when_math_is_confirmed():
         "part_b_status": "correct",
         "overall_sequence_correct_both_parts": True,
         "error_class": "none",
-        "manual_review_required": True,  # may be a visual-only LLM precaution
+        "manual_review_required": True,                                       
         "confidence": 0.98,
     }
     score, reason, conflicts = apply_ege13_rubric(
@@ -184,8 +184,8 @@ def test_point_ids_are_not_parsed_as_angle_labels_and_claim_equalities_use_final
 
 
 def test_one_high_confidence_geometry_conflict_does_not_auto_penalize_student():
-    # Models can occasionally place an axis point into a neighboring quadrant.
-    # One visual contradiction is insufficient for an automatic score decrease.
+                                                                              
+                                                                               
     result = verify_ege13_diagram(
         diagram_present=True,
         diagram_type="trig_circle",

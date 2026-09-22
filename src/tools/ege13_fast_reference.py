@@ -31,7 +31,7 @@ _TRIG_FUNCS = (sp.sin, sp.cos, sp.tan)
 
 
 def _center_linear_family(expr: sp.Expr, parameter: sp.Symbol) -> sp.Expr:
-    """Write a periodic linear family with a small representative angle."""
+
     slope = sp.simplify(sp.diff(expr, parameter))
     intercept = sp.simplify(expr.subs(parameter, 0))
     if slope == 0 or parameter in slope.free_symbols:
@@ -53,7 +53,7 @@ def _center_linear_family(expr: sp.Expr, parameter: sp.Symbol) -> sp.Expr:
 
 
 def _machine_friendly_family(expr: sp.Expr, parameter: sp.Symbol) -> bool:
-    """Keep exact linear families parseable by the deterministic pipeline."""
+
     if parameter not in expr.free_symbols:
         return False
     other = expr.free_symbols - {parameter}
@@ -72,7 +72,7 @@ def _family_from_angle(
     argument: sp.Expr,
     variable: sp.Symbol,
 ) -> dict[str, str] | None:
-    """Solve affine_argument(x) = angle + period*n."""
+
     n = sp.Symbol("n", integer=True)
     slope = sp.simplify(sp.diff(argument, variable))
     intercept = sp.simplify(argument.subs(variable, 0))
@@ -178,11 +178,11 @@ def _solve_half_angle_factor(
     factor: sp.Expr,
     variable: sp.Symbol,
 ) -> tuple[bool, list[dict[str, str]]]:
-    """Exact tan(x/2) fallback for mixed sin/cos factors.
 
-    It is bounded to a small polynomial degree so this path cannot turn into the
-    multi-minute general `solveset` search that caused the UI stall.
-    """
+
+
+
+
     t = sp.Symbol("__t", real=True)
     try:
         expanded = sp.expand_trig(factor.rewrite(sp.sin))
@@ -227,7 +227,7 @@ def _solve_half_angle_factor(
         if row not in families:
             families.append(row)
 
-    # tan(x/2) misses x = pi + 2*pi*n because t is infinite there.
+                                                                  
     try:
         at_pi = sp.simplify(sp.trigsimp(factor.subs(variable, sp.pi)))
         if _equal(at_pi, sp.Integer(0)):
@@ -245,7 +245,7 @@ def _fast_exact_trig_families(
     residual: sp.Expr,
     variable: sp.Symbol,
 ) -> tuple[list[dict[str, str]], str]:
-    """Solve the school-style trig core without calling general `solveset`."""
+
     try:
         transformed = sp.factor(sp.trigsimp(sp.expand_trig(residual)))
     except Exception as exc:
@@ -278,7 +278,7 @@ def _fast_exact_trig_families(
     if x_factors == 0 or not families:
         return [], f"fast_no_families:{sp.sstr(transformed)}"
 
-    # Generated families must prove themselves against the untouched residual.
+                                                                              
     verified: list[dict[str, str]] = []
     for family in families:
         errors = _verify_family_samples(
@@ -300,13 +300,13 @@ def verify_ege13_reference_fast(
     *,
     task_statement: str = "",
 ) -> ReferenceVerification:
-    """Fast reference verifier for EGE-13.
 
-    The old verifier called SymPy's general real-domain `solveset` on the whole
-    trigonometric equation. For some perfectly ordinary school equations that
-    search can take many minutes. This verifier uses bounded exact transformations
-    first and never enters an unbounded symbolic solve.
-    """
+
+
+
+
+
+
     started = time.perf_counter()
     spec = spec if isinstance(spec, dict) else {}
     results: list[str] = []

@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 
 
-# OCR sometimes reads handwritten Cyrillic "б)" as latin b), d) or 6).
-# These markers are only considered at the beginning of a solution step.
+                                                                      
+                                                                        
 _PART_B_RE = re.compile(
     r"^(?:\\text\{\s*)?(?:б\)|b\)|d\)|6\))(?:\s*\})?",
     re.IGNORECASE,
@@ -13,7 +13,7 @@ _ANSWER_RE = re.compile(r"^(?:\\text\{\s*)?ответ\s*:", re.IGNORECASE)
 
 
 def _normalise_layout(text: str) -> str:
-    """Normalise OCR layout markers without changing mathematical content."""
+
     value = str(text or "")
     value = value.replace("\r\n", "\n").replace("\r", "\n")
 
@@ -38,7 +38,7 @@ def _normalise_layout(text: str) -> str:
 
 
 def _split_section_markers(text: str) -> list[str]:
-    """Split before part-b / final-answer markers while keeping marker text."""
+
     marker = re.compile(
         r"(?=(?<![A-Za-zА-Яа-я0-9_])(?:\\text\{\s*)?(?:б\)|b\)|d\)|6\)|Ответ\s*:|ответ\s*:))",
         re.IGNORECASE,
@@ -47,7 +47,7 @@ def _split_section_markers(text: str) -> list[str]:
 
 
 def _split_answer_part_b(text: str) -> list[str]:
-    """Keep a) answer and b) answer separately so answer-lock is report-visible."""
+
     if not _ANSWER_RE.search(text):
         return [text]
     match = re.search(r"(?:;|\\quad|\s)(?=(?:б\)|b\)|d\)|6\)))", text, flags=re.IGNORECASE)
@@ -59,7 +59,7 @@ def _split_answer_part_b(text: str) -> list[str]:
 
 
 def _split_part_b_calculations(text: str) -> list[str]:
-    """Split independent root-selection calculations, not every algebraic semicolon."""
+
     if not _PART_B_RE.search(text):
         return [text]
 
@@ -76,7 +76,7 @@ def _split_part_b_calculations(text: str) -> list[str]:
 
 
 def _is_standalone_noise_fragment(text: str) -> bool:
-    """Return True for layout/OCR debris that has no independent math meaning."""
+
     value = text.strip()
     lower = value.lower()
     if lower in {"или", r"\text{или}", "or", r"\text{or}", "unu", r"\text{unu}"}:
@@ -95,7 +95,7 @@ def _is_operation_annotation(text: str) -> bool:
 
 
 def split_solution_step_texts(transcript: str, *, max_steps: int = 24) -> list[str]:
-    """Deterministically split an EGE-style solution into meaningful math steps."""
+
     text = _normalise_layout(transcript)
     if not text:
         return []

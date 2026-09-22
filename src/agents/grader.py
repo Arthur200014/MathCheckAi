@@ -25,12 +25,12 @@ def _load(relative_path: str) -> str:
 
 
 def _grader_schema() -> dict[str, Any]:
-    """Semantic-only Grader schema.
 
-    Student mathematical facts are deliberately absent. They are extracted by a
-    deterministic, transcript-only layer before the LLM call. This prevents the
-    Grader from copying/reconstructing reference values into student_* fields.
-    """
+
+
+
+
+
     return {
         "type": "object",
         "properties": {
@@ -86,7 +86,7 @@ def _grader_schema() -> dict[str, Any]:
 
 
 def _call_grader_llm_once(*, system_prompt: str, user_prompt: str) -> dict[str, Any]:
-    """Exactly one Grader LLM call, with no application output cap and no retry."""
+
     return ollama_chat_json(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -118,8 +118,8 @@ def _apply_rubric(
     diagram_part_b_valid: bool | None = None,
     diagram_method_used: bool = False,
 ):
-    # Kept for legacy tests/imports. Runtime scoring below uses the confirmed-
-    # transcript resolver that never withholds a score solely due to LLM caution.
+                                                                              
+                                                                                 
     return apply_ege13_rubric(
         assessment=llm,
         part_a_equivalent=part_a_equivalent,
@@ -171,7 +171,7 @@ def _fallback_semantic_assessment(*, evidence, math_check) -> dict[str, Any]:
 
 
 def _enforce_source_locked_invariants(*, assessment: dict[str, Any], evidence, math_check) -> tuple[dict[str, Any], list[str]]:
-    """Make impossible states impossible before scoring/reporting."""
+
     out = dict(assessment)
     overrides: list[str] = []
 
@@ -221,12 +221,12 @@ def _enforce_source_locked_invariants(*, assessment: dict[str, Any], evidence, m
 
 
 def grader_agent(state: ReviewState) -> dict:
-    """Third agent: source-locked grading over a confirmed transcript.
 
-    Architecture rule: student_* facts come only from the confirmed transcript.
-    The LLM may classify reasoning, but it cannot author, repair or replace the
-    student's mathematical families/selected roots.
-    """
+
+
+
+
+
     if state.get("task_type") != "ege_13":
         return {
             "grader_mode": "unsupported",

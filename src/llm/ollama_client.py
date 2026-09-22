@@ -13,12 +13,12 @@ from src.observability.runtime import log_llm_call
 
 
 class OllamaError(RuntimeError):
-    """Structured failure from the local Ollama runtime.
 
-    The client always preserves telemetry on failures. In particular, timeout
-    errors carry elapsed time and partial streaming progress, so the API never
-    reports a misleading ``0 seconds`` failure.
-    """
+
+
+
+
+
 
     def __init__(
         self,
@@ -123,13 +123,13 @@ def _open_streaming_post(
     total_deadline_seconds: float,
     started: float,
 ):
-    """Open Ollama's NDJSON stream with separate connect and runtime deadlines.
 
-    Vision can spend a long time encoding/prefilling an image before the first
-    streamed token exists. That phase is bounded by the total request deadline,
-    not by the token-to-token idle timeout. The idle timeout starts only after
-    streaming has actually begun.
-    """
+
+
+
+
+
+
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in {"http", "https"}:
         raise OllamaError(
@@ -175,17 +175,17 @@ def ollama_chat_json(
     num_predict: int | None = None,
     use_num_predict_limit: bool = True,
 ) -> dict[str, Any]:
-    """Call local Ollama with bounded NDJSON streaming.
 
-    Reliability rules:
-    - connection establishment has a short dedicated timeout;
-    - image encoding/prefill may legitimately be slow and is bounded by the
-      overall request deadline;
-    - once the first stream chunk arrives, token-to-token stalls are bounded by
-      the idle timeout;
-    - a wall-clock ceiling still prevents a runaway generation from living
-      forever.
-    """
+
+
+
+
+
+
+
+
+
+
     base_url = get_ollama_base_url()
     model_name = model or get_vision_model()
     has_image = bool(image_b64)
@@ -288,10 +288,10 @@ def ollama_chat_json(
                 )
 
             if conn.sock is not None:
-                # Before the first chunk the model is still encoding/prefilling
-                # the request. That is not a stream stall, so only the total
-                # request deadline applies. After streaming starts, the normal
-                # token-to-token idle timeout applies.
+                                                                               
+                                                                            
+                                                                              
+                                                      
                 read_timeout = remaining if chunks_received == 0 else min(float(idle_timeout), remaining)
                 conn.sock.settimeout(max(0.1, read_timeout))
 
@@ -424,7 +424,7 @@ def ollama_chat_json(
 
 
 def ollama_runtime_info(timeout: int = 5) -> dict[str, Any]:
-    """Read lightweight Ollama runtime information for debugging local speed."""
+
     base_url = get_ollama_base_url()
     out: dict[str, Any] = {"base_url": base_url}
     for key, path in (("version", "/api/version"), ("running_models", "/api/ps")):

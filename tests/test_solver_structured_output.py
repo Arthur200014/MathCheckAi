@@ -38,7 +38,7 @@ def test_solver_requests_small_machine_first_json(monkeypatch):
     assert captured["num_predict"] == 560
     schema = captured["response_schema"]
     assert "machine_spec" in schema["required"]
-    # Long prose fields must NOT be requested in the first pass.
+                                                                
     assert "reference_solution" not in schema["properties"]
     assert "reference_steps" not in schema["properties"]
     assert "final_answer" not in schema["properties"]

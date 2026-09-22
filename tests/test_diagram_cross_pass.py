@@ -60,7 +60,7 @@ def test_invalid_requires_same_error_signature_on_reinspection():
         ],
         ["-11*pi/4", "-9*pi/4", "-3*pi/2"],
     )
-    # normalize first signatures exactly as tool emits on second pass
+                                                                     
     state["diagram_initial_evidence_signatures"] = ["point_value:-9*pi/4", "point_value:-11*pi/4"]
     result = diagram_final_verifier_node(state)
     assert result["diagram_verification_status"] == "DIAGRAM_INVALID"

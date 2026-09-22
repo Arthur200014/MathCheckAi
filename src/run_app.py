@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 
 from src import api
-from src import extra_api  # noqa: F401  # registers saved-review/metrics endpoints
-from src import multi_photo_api  # noqa: F401  # registers /api/reviews/photos
+from src import extra_api                                                          
+from src import multi_photo_api                                               
 
 
 def _replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -20,7 +20,7 @@ def _build_web_ui() -> Path:
     source = source.replace('<title>MathCheck AI — ЕГЭ №13</title>', '<title>MathCheck — ЕГЭ №13</title>', 1)
     source = source.replace('<h1>MathCheck AI</h1>', '<h1>MathCheck</h1>', 1)
 
-    # ID нужен API, но пользователю он не нужен.
+                                                
     source = _replace_once(
         source,
         '<label for="studentId">ID ученика</label><input id="studentId" class="input" value="student-001">',
@@ -28,7 +28,7 @@ def _build_web_ui() -> Path:
         "student id field",
     )
 
-    # Диагностику оставляем доступной, чтобы при ошибке было видно запрос и ответ сервера.
+                                                                                          
     source = _replace_once(
         source,
         '<details><summary>Технические данные / JSON для отправки</summary>',
@@ -38,7 +38,7 @@ def _build_web_ui() -> Path:
 
     source = source.replace('class="version"', 'class="version hidden"', 1)
 
-    # Служебные фрагменты OCR нужны внутри ответа, но пользователю их не показываем.
+                                                                                    
     source = _replace_once(
         source,
         '<div id="chips" class="chips"></div>',
@@ -53,7 +53,7 @@ def _build_web_ui() -> Path:
         "result subtitle",
     )
 
-    # История теперь показывается прямо из SQLite. Каждую запись можно открыть.
+                                                                               
     source = _replace_once(
         source,
         '<section id="historyCard" class="card"><div class="head"><div><h2>Предыдущие проверки</h2><p>Новая загрузка не стирает законченные результаты.</p></div><button id="clearHistoryBtn" class="btn ghost">Очистить историю</button></div>',
@@ -93,7 +93,7 @@ def _build_web_ui() -> Path:
         "state",
     )
 
-    # Старую browser-local историю заменяем реальными записями SQLite.
+                                                                      
     history_start = source.find("function loadHistory(){")
     history_end = source.find("function setActiveMathTarget", history_start)
     if history_start == -1 or history_end == -1:
@@ -131,9 +131,9 @@ function showScanDebug(response=null,error=null){const data={request:st.lastScan
     new_scan = "$('scanBtn').addEventListener('click',async()=>{const files=(st.files&&st.files.length?st.files:[st.file]).filter(Boolean);if(!files.length)return;$('scanBtn').disabled=true;busy('scanStatus','scanStatusText',files.length===1?'Распознаю работу':`Распознаю ${files.length} фото одним проходом`);st.lastScanRequest=scanRequestInfo(files);showScanDebug();try{const fd=new FormData();files.forEach(f=>fd.append('images',f));fd.append('student_id',$('studentId').value.trim()||'student-local');fd.append('task_type','ege_13');const d=await json(await fetch('/api/reviews/photos',{method:'POST',body:fd}));st.ocr=d;showScanDebug(d);if((d.errors||[]).length&&!(d.transcript||'').trim())throw new Error(d.errors[0]);fillDraft();$('chips').replaceChildren();(d.task_uncertain_fragments||[]).concat(d.uncertain_fragments||[]).forEach(x=>{const c=document.createElement('span');c.className='chip';c.textContent=x;$('chips').append(c)});if(d.stage_timings)renderStageProgress(d.stage_timings);$('confirmCard').classList.remove('hidden');progress(2);$('confirmCard').scrollIntoView({behavior:'smooth'});$('equationText').focus()}catch(e){showScanDebug(st.ocr,e);toast('Ошибка: '+e.message)}finally{idle('scanStatus');$('scanBtn').disabled=false}});"
     source = _replace_once(source, old_scan, new_scan, "scan click")
 
-    # На финальном этапе показываем не только ответ, но и точный payload,
-    # отправленный после ручного подтверждения. Это позволяет сразу отличить
-    # ошибку модели от ситуации, когда браузер отправил старое значение поля.
+                                                                         
+                                                                            
+                                                                             
     confirm_payload = "const task=buildTask(eq,iv);const payload={review_id:st.ocr.review_id,student_id:$('studentId').value.trim()||st.ocr.student_id||'student-001',task_type:'ege_13',confirmed_task_equation:eq,confirmed_interval:iv,task_statement:task,confirmed_task_statement:task,original_task_statement:st.ocr.original_task_statement||'',original_transcript:st.ocr.original_transcript||st.ocr.transcript||'',confirmed_transcript:sol};busy('gradeStatus','gradeStatusText','Проверяю решение');"
     source = _replace_once(
         source,

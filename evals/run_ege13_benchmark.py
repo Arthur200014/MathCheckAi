@@ -1,18 +1,18 @@
-"""Benchmark MathCheck AI on expert-labelled EGE-13 works.
 
-The benchmark deliberately evaluates two different things separately:
-1) Vision models: photo -> raw OCR quality/latency.
-2) Agentic grading system: human-confirmed transcript -> Solver -> deterministic
-   reference verifier -> Grader -> Reviewer -> final score.
 
-That mirrors the real product boundary: every photo transcript is confirmed by a
-human before grading. It also prevents a Vision failure from hiding the quality
-of the downstream grading system and prevents model-comparison runs from paying
-for the same downstream pipeline three times.
 
-The student's trig-circle drawing is outside the current MVP scope and is never
-sent to a diagram agent in this benchmark.
-"""
+
+
+
+
+
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def _case_image_paths(case: dict[str, Any], data_dir: Path) -> list[Path]:
 
 
 def _preflight_images(cases: list[dict[str, Any]], data_dir: Path) -> None:
-    """Fail before any expensive LLM calls if the local eval dataset is incomplete."""
+
     missing: list[str] = []
     for case in cases:
         for path in _case_image_paths(case, data_dir):
@@ -177,7 +177,7 @@ def _run_vision(case: dict[str, Any], model: str, image_bytes: bytes) -> dict[st
 
 
 def _run_confirmed_pipeline(case: dict[str, Any], model: str, transcript: str) -> dict[str, Any]:
-    """Run the text-only grading pipeline from the mandatory human boundary."""
+
     equation = str(case.get("task_equation", "")).strip()
     interval = str(case.get("interval", "")).strip()
     statement = build_ege13_task_statement(equation, interval)
@@ -197,9 +197,9 @@ def _run_confirmed_pipeline(case: dict[str, Any], model: str, transcript: str) -
         "human_confirmation_required": True,
         "human_confirmation_completed": True,
         "transcript_confirmation_source": "eval_human_ground_truth",
-        # The active product scope ignores the student's drawn trig circle.
-        # Keeping the image out of this stage makes the eval match production
-        # routing and guarantees that no diagram model is invoked accidentally.
+                                                                           
+                                                                             
+                                                                               
         "image_b64": "",
         "errors": [],
         "warnings": [],
@@ -343,11 +343,11 @@ def _run_system_case(case: dict[str, Any], model: str) -> dict[str, Any]:
 
 
 def _run_case(case: dict[str, Any], model: str, data_dir: Path) -> dict[str, Any]:
-    """Backward-compatible combined helper used by unit tests.
 
-    Production benchmark execution is separated into Vision rows and one fixed
-    downstream system run. This helper preserves the old test-facing contract.
-    """
+
+
+
+
     vision_row = _run_vision_case(case, model, data_dir)
     system_row = _run_system_case(case, get_solver_model())
     return {**vision_row, **system_row, "model": model, "vision_ok": vision_row.get("vision_ok"),
@@ -406,7 +406,7 @@ def _system_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _summary_for_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Compatibility summary for older tests/importers."""
+
     return _vision_summary(rows) if rows and rows[0].get("row_type") == "vision" else _system_summary(rows)
 
 

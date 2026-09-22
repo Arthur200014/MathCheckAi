@@ -1,9 +1,9 @@
-"""Run only the Vision part of the EGE-13 benchmark.
 
-Use this after the human-confirmed grading-system benchmark has already been run.
-It reuses the same cases, image preflight, OCR metric and Vision runner as the
-main benchmark, but does not call Solver, Grader or Reviewer.
-"""
+
+
+
+
+
 
 from __future__ import annotations
 

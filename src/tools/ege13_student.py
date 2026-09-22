@@ -19,9 +19,9 @@ from src.tools.ege13_reference import (
 _SUBSCRIPT_TRANS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _PARAM = r"[A-Za-z][A-Za-z0-9]*"
 _MEMBERSHIP = r"(?:\\in|∈|∊)\s*(?:\\mathbb\s*\{\s*Z\s*\}|ℤ|Z)"
-# OCR/user edits often produce compact markers such as "b)на ..." with no
-# whitespace after the marker. The marker is already anchored to a line start,
-# so requiring a following space only makes valid part-b text disappear.
+                                                                         
+                                                                              
+                                                                        
 _PART_B_RE = re.compile(r"(?im)(?:^|\n|\\newline)\s*(?:б|b|d|6)\s*(?:\)|\.|:|[-—])")
 _INLINE_B_RE = re.compile(r"(?i)(?:б|b)\s*(?:\)|\.|:)")
 _INDEXED_ROOT_RE = re.compile(r"(?i)x(?:_?\{?\d+\}?|\d+)\s*=")
@@ -63,13 +63,13 @@ def _parameter_candidates(expr: str) -> list[str]:
 
 
 def _trim_family_math_prefix(expr: str) -> str:
-    """Drop explanatory prose after an otherwise valid school formula.
 
-    Handwritten/OCR text often joins a family and a comment in one logical
-    line, e.g. ``x = 2πk получено ...`` or ``x = ... целых k нет``.  Prose is
-    not part of the mathematical expression and must not turn into fake SymPy
-    identifiers.
-    """
+
+
+
+
+
+
     text = _normalize(expr).strip()
     text = re.sub(r"\\text\s*\{.*$", "", text).strip()
     text = re.split(r"\s+(?=[А-Яа-яЁё])", text, maxsplit=1)[0].strip()
@@ -87,7 +87,7 @@ def _clean_family_expr(expr: str, parameter: str) -> str:
 
 
 def _expand_plusminus(expr: str) -> list[str]:
-    """Expand standard ±/∓ school notation into linked concrete branches."""
+
     text = str(expr or "").replace("\\pm", "±").replace("\\mp", "∓")
     if "±" not in text and "∓" not in text:
         return [text]

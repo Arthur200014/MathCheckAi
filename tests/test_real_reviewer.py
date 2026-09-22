@@ -132,7 +132,7 @@ def test_reviewer_accepts_deterministic_diagram_override_and_finalizes_one(monke
     payload = {
         "can_review": True,
         "part_a_status": "correct",
-        "part_b_status": "correct",  # reviewer LLM also misses picture semantics
+        "part_b_status": "correct",                                              
         "overall_sequence_correct_both_parts": True,
         "error_class": "none",
         "manual_review_required": False,
@@ -211,7 +211,7 @@ def test_reviewer_unreadable_diagram_does_not_block_confirmed_math(monkeypatch):
         },
         "evidence": ["математика подтверждена"],
         "assessment": "Рисунок неразборчив, но математический результат проверяем.",
-        "proposed_score": 1,  # cautious LLM must not force manual review on unreadability alone
+        "proposed_score": 1,                                                                    
         "_model": "reviewer-test",
     }
     monkeypatch.setattr(reviewer_module, "ollama_chat_json", lambda **kwargs: payload)

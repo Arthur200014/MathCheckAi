@@ -48,7 +48,7 @@ def _load_text(relative_path: str) -> str:
 
 
 def _split_transcript_steps(transcript: str, *, max_steps: int = 24) -> list[str]:
-    """Backward-compatible wrapper around the shared deterministic parser."""
+
     return split_solution_step_texts(transcript, max_steps=max_steps)
 
 
@@ -59,15 +59,15 @@ def evaluate_transcript_gate(
     *,
     vision_error: bool = False,
 ) -> dict:
-    """Gate OCR output before any mathematical grading.
 
-    Product rule for photo uploads: OCR is never trusted as final evidence.
-    Any non-empty OCR transcript must be shown to a human and explicitly
-    confirmed/corrected before Solver, Grader or Reviewer can run.
 
-    ``confidence`` and ``uncertain_fragments`` are retained for UI/telemetry
-    only; they never auto-accept a photo transcript and never alter scoring.
-    """
+
+
+
+
+
+
+
     clean_uncertain = [str(x).strip() for x in uncertain_fragments if str(x).strip()]
 
     if vision_error or not transcript.strip():
@@ -87,7 +87,7 @@ def evaluate_transcript_gate(
 
 
 def _detect_suspicious_ocr_fragments(transcript: str) -> list[str]:
-    """Detect obvious OCR debris without trying to correct the student's math."""
+
     text = str(transcript or "")
     found: list[str] = []
     allowed_text = {"или", "ответ", "и", "где", "при", "корни", "найдём", "найдем"}
@@ -159,13 +159,13 @@ def _telemetry_fields(telemetry: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def vision_agent(state: ReviewState) -> dict:
-    """One photo, one Vision pass: transcribe task statement and student work.
 
-    Vision is an OCR stage, not a reasoning stage. The transport owns the JSON
-    structure through Ollama's native schema. The model only has to fill the
-    transcript fields, which avoids making a long handwritten solution compete
-    with hand-written JSON formatting instructions.
-    """
+
+
+
+
+
+
     image_b64 = state.get("image_b64")
     statement_hint = state.get("task_statement", "")
 

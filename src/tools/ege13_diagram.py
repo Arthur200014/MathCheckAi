@@ -69,12 +69,12 @@ def _position_for_angle(expr: sp.Expr) -> str | None:
 
 
 def _extract_final_claim_value(raw: str) -> tuple[str | None, list[str]]:
-    """Extract final value and verify a copied equality chain when possible.
 
-    Parse failure means extraction uncertainty. A *successfully parsed false
-    equality* is a real candidate error, but final automatic invalidation is
-    still cross-pass gated by the agent layer.
-    """
+
+
+
+
+
     text = str(raw or "").strip()
     notes: list[str] = []
     if not text:
@@ -127,7 +127,7 @@ def _issue_is_extraction_uncertainty(item: str) -> bool:
 
 
 def evidence_signatures(verification: DiagramVerification) -> set[str]:
-    """Stable error signatures used to cross-confirm two independent passes."""
+
     out: set[str] = set()
     for item in verification.issues:
         m = re.search(r"diagram_point_value_mismatch:id=[^:]+:value=([^:]+):", item)
@@ -164,11 +164,11 @@ def verify_ege13_diagram(
     arc_marked: bool | None = None,
     arc_confidence: float = 0.0,
 ) -> DiagramVerification:
-    """Conservative deterministic check of a student's trig-circle extraction.
 
-    This function evaluates one visual pass. The graph/agent layer performs a
-    second independent pass before a negative diagram verdict may lower score.
-    """
+
+
+
+
     results: list[str] = []
     issues: list[str] = []
 
@@ -308,23 +308,23 @@ def verify_ege13_diagram(
                 f"diagram_claimed_root_set_not_safely_comparable:claims={len(claimed_values)}:expected={len(expected_roots)}"
             )
 
-    # Structural checks from expert criteria. They are intentionally conservative:
-    # only high-confidence visual absence becomes an invalid candidate, and even
-    # that candidate must be independently confirmed by a second pass upstream.
+                                                                                  
+                                                                                
+                                                                               
     if method_used and confidence >= 0.88 and not uncertain_fragments:
         boundary_points = [p for p in points if p.get("role") == "interval_boundary" and _high_conf(p.get("confidence", confidence))]
         selected_points = [p for p in points if p.get("role") == "selected_root" and _high_conf(p.get("confidence", confidence))]
         if arc_marked is False and _high_conf(arc_confidence):
             issues.append("diagram_required_arc_missing")
             strong_error_codes.add("missing_arc")
-        # Do NOT infer a student error merely because the extractor failed to
-        # classify boundary/root roles. Absence of a role in JSON may be a VLM
-        # omission. Such structural omissions are handled as uncertainty/manual
-        # review unless there is a direct, high-confidence visual signal (the
-        # arc check above) and then must still be cross-pass confirmed upstream.
+                                                                             
+                                                                              
+                                                                               
+                                                                             
+                                                                                
 
-    # One pass may propose INVALID, but the graph will not lower the score until
-    # a second independent inspection confirms a stable signature.
+                                                                                
+                                                                  
     if root_set_state is False or len(mismatch_ids) >= 2 or strong_error_codes:
         if len(mismatch_ids) >= 2:
             results.append(f"diagram_redundant_mismatch_count:{len(mismatch_ids)}")

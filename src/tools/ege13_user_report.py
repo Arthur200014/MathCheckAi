@@ -317,12 +317,12 @@ def _part_b_summary(state: ReviewState, comments: list[dict[str, str]]) -> str:
 
 
 def build_user_report_node(state: ReviewState) -> dict[str, Any]:
-    """Build the final user-facing report from confirmed work + verified facts.
 
-    The report intentionally does not expose a green/red verdict for every line.
-    The student's confirmed solution is shown as one coherent piece of work, and
-    only a small number of concrete expert comments are added next to it.
-    """
+
+
+
+
+
     if state.get("status") != "REVIEWED":
         return {}
 

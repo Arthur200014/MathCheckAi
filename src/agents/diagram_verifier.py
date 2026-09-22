@@ -27,7 +27,7 @@ def _verify_from_state(state: ReviewState, *, recheck: bool = False):
 
 
 def diagram_verifier_node(state: ReviewState) -> dict:
-    """First deterministic pass. Negative/uncertain results trigger reinspection."""
+
     if state.get("task_type") != "ege_13" or state.get("diagram_scope_ignored", False):
         return {
             "diagram_method_used": False,
@@ -55,11 +55,11 @@ def diagram_verifier_node(state: ReviewState) -> dict:
 
 
 def diagram_final_verifier_node(state: ReviewState) -> dict:
-    """Combine two visual passes conservatively.
 
-    A negative diagram verdict may reduce score only if the second independent
-    (usually zoomed) pass confirms the same substantive error signature.
-    """
+
+
+
+
     if state.get("diagram_scope_ignored", False):
         return {
             "diagram_verification_status": "NOT_APPLICABLE",

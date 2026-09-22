@@ -127,7 +127,7 @@ def save_review(review: dict[str, Any]) -> str:
 
 
 def load_review(review_id: str) -> dict[str, Any] | None:
-    """Load one saved review by id, including the persisted safe payload."""
+
     rid = str(review_id or "").strip()
     if not rid or not DB_PATH.exists():
         return None
@@ -163,7 +163,7 @@ def load_student_history(student_id: str, *, limit: int = 10) -> list[dict[str, 
 
 
 def metrics_summary(*, limit: int = 200) -> dict[str, Any]:
-    """Small local metrics snapshot from persisted reviews for demo/defense."""
+
     if not DB_PATH.exists():
         return {
             "reviews": 0,

@@ -27,12 +27,12 @@ def _ignored(prefix: str) -> dict:
 
 
 def diagram_vision_node(state: ReviewState) -> dict:
-    """The project scope ignores the student's drawn trig circle.
 
-    Part б is graded from the confirmed written solution and selected roots only.
-    Keeping this node as a no-op preserves graph/API compatibility without a
-    second multimodal call.
-    """
+
+
+
+
+
     return _ignored("diagram_")
 
 

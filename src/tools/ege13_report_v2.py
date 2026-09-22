@@ -63,8 +63,8 @@ def _family_parts(expression: str, parameter: str) -> tuple[sp.Expr, sp.Expr] | 
     if period == 0:
         return None
 
-    # For school trig answers choose the symmetric representative of the same
-    # residue class, e.g. 5π/4 -> -3π/4 when the period is 2π.
+                                                                             
+                                                              
     period_ratio = _pi_ratio(period)
     offset_ratio = _pi_ratio(offset)
     if period_ratio is not None and period_ratio > 0 and offset_ratio is not None:
@@ -86,7 +86,7 @@ def _format_family(expression: str, parameter: str = "n") -> tuple[str, sp.Expr 
     offset, period = parts
     offset_text = _format_pi_multiple(offset)
     period_text = _format_pi_multiple(period)
-    n = "n"  # integer parameter is dummy; use one familiar symbol everywhere.
+    n = "n"                                                                   
     period_term = f"{period_text}{n}"
     if offset == 0:
         rhs = period_term
@@ -114,8 +114,8 @@ def _reference_family_rows(state: ReviewState) -> list[str]:
             rows_with_offset.append((offset, row))
 
     if rows_with_offset:
-        # Familiar ordering for a school answer: positive/small root first,
-        # then negative representatives closest to zero.
+                                                                           
+                                                        
         def key(item: tuple[sp.Expr | None, str]) -> float:
             off = item[0]
             if off is None:
@@ -199,7 +199,7 @@ def _matching_reference_family(step_text: str, state: ReviewState) -> str:
         return refs[0][2]
     student_offset, _ = parts
 
-    # Prefer the reference branch with the same base root modulo its period.
+                                                                            
     exact: list[str] = []
     for ref_offset, ref_period, display in refs:
         delta = sp.simplify((student_offset - ref_offset) / ref_period)
@@ -208,7 +208,7 @@ def _matching_reference_family(step_text: str, state: ReviewState) -> str:
     if exact:
         return exact[0]
 
-    # Otherwise choose the nearest base representative numerically.
+                                                                   
     def distance(item: tuple[sp.Expr, sp.Expr, str]) -> float:
         ref_offset, _, _ = item
         try:
@@ -324,7 +324,7 @@ def _summary(score: int, max_score: int, part_a: str, part_b: str, part_b_presen
 
 
 def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
-    """Student-facing report: familiar math notation + actionable step corrections."""
+
     if state.get("status") != "REVIEWED":
         return {}
 

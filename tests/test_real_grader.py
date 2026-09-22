@@ -14,8 +14,8 @@ x=-\frac{\pi}{6}+\pi n, n\in\mathbb{Z}
 
 
 def _three_family_transcript() -> str:
-    # Keep real line breaks here: browser-confirmed text contains actual newlines,
-    # not the two literal characters backslash+n.
+                                                                                  
+                                                 
     return r"""a) x=-\frac{\pi}{4}+2\pi k,\ k\in\mathbb{Z}; x=\frac{\pi}{2}+2\pi n,\ n\in\mathbb{Z}; x=-\frac{3\pi}{4}+2\pi m,\ m\in\mathbb{Z}
 б) x_1=-\frac{11\pi}{4}
 x_2=-\frac{9\pi}{4}

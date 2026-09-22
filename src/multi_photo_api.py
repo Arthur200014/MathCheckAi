@@ -14,12 +14,12 @@ PAGE_GAP = 28
 
 
 def _stitch_pages(pages: list[bytes]) -> tuple[bytes, list[dict]]:
-    """Build one ordered image for one Vision pass.
 
-    Each page keeps its aspect ratio. Very large phone photos are reduced only for
-    the multi-page sheet; 2200 px width is still ample for handwritten maths and
-    avoids sending several full-resolution camera frames through the vision encoder.
-    """
+
+
+
+
+
     prepared: list[Image.Image] = []
     page_meta: list[dict] = []
 
@@ -112,7 +112,7 @@ async def create_review_from_photos(
     task_type: str = Form("ege_13"),
     task_statement: str = Form(""),
 ):
-    """Recognise all pages of one solution in one Vision model call."""
+
     if not images:
         raise HTTPException(status_code=400, detail="Нужно выбрать хотя бы одно фото.")
     if len(images) > MAX_PHOTOS:
@@ -129,7 +129,7 @@ async def create_review_from_photos(
             raise HTTPException(status_code=400, detail=f"Фото {number} пустое.")
         if len(data) > api.MAX_IMAGE_BYTES:
             raise HTTPException(status_code=413, detail=f"Фото {number} больше 12 МБ.")
-        # Validate every original before building the sheet.
+                                                            
         api._inspect_original_image(data)
         raw_pages.append(data)
         names.append(image.filename or f"page-{number}")

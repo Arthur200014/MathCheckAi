@@ -20,15 +20,15 @@ def _profile_from_state(state: ReviewState) -> TaskProfile:
 
 
 def solver_agent(state: ReviewState) -> dict:
-    """Independent local Solver, machine-first.
 
-    Stage 2.4.2 deliberately asks the LLM for a *small* structured core only.
-    Long prose was causing truncated/invalid JSON on the local 4B model. The
-    deterministic verifier is the authority; human-readable reference text is
-    built from verified data later.
 
-    Student transcript is never inserted in this prompt.
-    """
+
+
+
+
+
+
+
     statement = str(state.get("task_statement", "")).strip()
     if not statement:
         return {
@@ -67,8 +67,8 @@ def solver_agent(state: ReviewState) -> dict:
     system_prompt = _load_text("prompts/solver_agent.md")
     task_skill = _load_text(profile.solver_skill)
 
-    # Keep the request intentionally short. The verifier, criteria and formatting
-    # files are not needed for the machine core and only consume context/output.
+                                                                                 
+                                                                                
     user_prompt = f"""
 ПРОФИЛЬ: {profile.id} — {profile.title}
 
@@ -92,7 +92,7 @@ TASK-SPECIFIC SKILL (используй как ориентир, но ответ
 Не оценивай ученика. Решение ученика тебе не передано.
 """.strip()
 
-    # Small schema = much lower chance of truncated JSON on a 4B local model.
+                                                                             
     solver_schema = {
         "type": "object",
         "properties": {
@@ -154,8 +154,8 @@ TASK-SPECIFIC SKILL (используй как ориентир, но ответ
             num_predict=560,
         )
     except OllamaError as exc:
-        # Do NOT collapse the whole graph. The reference verifier can independently
-        # reconstruct and solve supported №13 tasks from task_statement with SymPy.
+                                                                                   
+                                                                                   
         return {
             "solver_ok": False,
             "solver_model": "ollama-error",
@@ -191,7 +191,7 @@ TASK-SPECIFIC SKILL (используй как ориентир, но ответ
         "solver_error": "" if solver_ok else "low_confidence_or_incomplete_output",
         "reference_answer_part_a": final_answer_part_a,
         "solver_machine_spec": machine_spec if isinstance(machine_spec, dict) else {},
-        # Long reference text is intentionally deferred until after deterministic verification.
+                                                                                               
         "reference_solution": "",
         "reference_steps": [],
         "key_checkpoints": list(profile.required_checkpoints),

@@ -13,11 +13,11 @@ def _profile_from_state(state: ReviewState) -> TaskProfile:
 
 
 def reference_verifier_agent(state: ReviewState) -> dict:
-    """Deterministic guard/fallback between Solver and Grader.
 
-    The verifier can now proceed even when Solver returned malformed JSON,
-    because supported EGE-13 tasks are reconstructed directly from task_statement.
-    """
+
+
+
+
     try:
         profile = _profile_from_state(state)
     except Exception as exc:

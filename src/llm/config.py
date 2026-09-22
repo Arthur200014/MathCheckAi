@@ -1,14 +1,14 @@
 import os
 
-# One place to choose models. App code does not depend on hard-coded model names.
+                                                                                 
 DEFAULT_VISION_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_SOLVER_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_GRADER_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_REVIEWER_MODEL = "qwen3-vl:4b-instruct"
 DEFAULT_DIAGRAM_MODEL = "qwen3-vl:4b-instruct"
 
-# Models used for the benchmark. Keep this list to instruction-following
-# multimodal models that are practical to run locally on the target Mac.
+                                                                        
+                                                                        
 BENCHMARK_VISION_MODELS = [
     "qwen3-vl:4b-instruct",
     "gemma3:4b",

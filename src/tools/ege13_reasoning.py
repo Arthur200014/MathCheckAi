@@ -8,13 +8,13 @@ from src.tools.ege13_reference import _dedupe, _equal, _extract_part_a_equation,
 from src.tools.ege13_student import _extract_pi_tokens, _extract_student_families_from_text, _parse_result_root
 
 
-# d)/6) are observed OCR variants of handwritten Cyrillic б).
+                                                             
 _PART_B_MARKER_RE = re.compile(r"(?i)^\s*(?:б|b|d|6)\s*(?:\)|\.|:)")
 _INDEXED_ROOT_RE = re.compile(r"(?i)x(?:_?\{?\d+\}?|\d+)\s*=")
 
 
 def _equivalent_to_original(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol) -> bool:
-    """Return True only when equivalence is actually proved."""
+
     try:
         diff = sp.trigsimp(sp.expand_trig(sp.expand(candidate - reference)))
         if diff == 0:
@@ -30,7 +30,7 @@ def _equivalent_to_original(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol
 
 
 def _is_zero_factor_branch(candidate: sp.Expr, reference: sp.Expr, x: sp.Symbol) -> bool:
-    """Recognise a valid branch such as sin(x)-1=0 after a product equals zero."""
+
     try:
         ref = sp.factor(sp.trigsimp(sp.expand_trig(reference)))
         cand = sp.factor(sp.trigsimp(sp.expand_trig(candidate)))
@@ -55,7 +55,7 @@ def deterministic_reasoning_overrides_ege13(
     task_statement: str,
     expected_roots: list[str],
 ) -> dict[str, dict[str, str]]:
-    """High-confidence deterministic annotations for the semantic grader."""
+
     overrides: dict[str, dict[str, str]] = {}
 
     try:
@@ -83,8 +83,8 @@ def deterministic_reasoning_overrides_ege13(
         if _PART_B_MARKER_RE.search(text):
             in_part_b = True
 
-        # Only part-a general families should be evaluated against the original
-        # equation. Once part b starts, x=... is a root-selection calculation.
+                                                                               
+                                                                              
         families = []
         if not in_part_b:
             families, _, _ = _extract_student_families_from_text(text)

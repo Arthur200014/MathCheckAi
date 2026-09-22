@@ -41,7 +41,7 @@ def test_real_vision_ignores_model_needs_confirmation_field():
         "steps": [r"\\sin x = \\frac12"],
         "confidence": 0.75,
         "uncertain_fragments": [],
-        "needs_confirmation": False,  # should be ignored even if model emits it
+        "needs_confirmation": False,                                            
         "_model": "qwen3-vl:4b-instruct",
     }
     state = {

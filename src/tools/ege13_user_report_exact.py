@@ -7,7 +7,7 @@ from src.tools.ege13_user_report import build_user_report_node as _build_user_re
 
 
 def build_user_report_node(state: ReviewState) -> dict[str, Any]:
-    """Keep the human-confirmed text exact and suppress disproved report comments."""
+
     out = _build_user_report_node(state)
     report = out.get("report") if isinstance(out, dict) else None
     if not isinstance(report, dict):
@@ -17,11 +17,11 @@ def build_user_report_node(state: ReviewState) -> dict[str, Any]:
     fixed_report = dict(report)
     fixed_report["confirmed_solution_text"] = confirmed.strip()
 
-    # The deterministic checker compares the complete periodic solution set.
-    # If it proves part a equivalent, a per-family heuristic must not invent a
-    # "wrong period" comment merely because the reference represents the same
-    # set as separate even/odd families (for example pi*n vs 2*pi*n and
-    # pi*(2*n-1)).
+                                                                            
+                                                                              
+                                                                             
+                                                                       
+                  
     part_a_equivalent = (
         state.get("reviewer_part_a_equivalent") is True
         or state.get("grader_part_a_equivalent") is True

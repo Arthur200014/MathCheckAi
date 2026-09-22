@@ -58,7 +58,7 @@ def route_after_reference(state: ReviewState) -> str:
 
 
 def route_after_diagram_verify(state: ReviewState) -> str:
-    """Legacy compatibility helper. Diagram nodes are not part of the active graph."""
+
     return "grade"
 
 

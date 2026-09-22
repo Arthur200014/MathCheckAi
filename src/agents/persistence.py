@@ -7,7 +7,7 @@ from src.tools.core import save_report, save_review
 
 
 def persist_review_node(state: ReviewState) -> dict[str, Any]:
-    """Fast deterministic persistence node; not an LLM agent."""
+
     if state.get("status") != "REVIEWED":
         return {"history_saved": False}
     try:

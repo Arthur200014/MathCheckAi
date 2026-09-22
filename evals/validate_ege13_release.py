@@ -1,9 +1,9 @@
-"""Fast deterministic release gate for the labelled EGE-13 dataset.
 
-No Ollama calls. It checks the whole 12-case ground truth against the same
-reference verifier and student parser used by the runtime before an expensive
-model benchmark is allowed to start.
-"""
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -50,12 +50,12 @@ def validate_case(case: dict) -> dict:
             if math.part_b_matches is not True:
                 problems.append("expert_2_part_b_not_confirmed")
         elif score == 1:
-            # All selected 1-point cases have a correct part a. Part b may be
-            # mathematically wrong OR visually invalid, so only a is mandatory here.
+                                                                             
+                                                                                    
             if math.part_a_equivalent is not True:
                 problems.append("expert_1_part_a_not_confirmed")
         elif score == 0:
-            # The four selected zero-point examples contain a substantive error in a.
+                                                                                     
             if math.part_a_equivalent is True:
                 problems.append("expert_0_part_a_unexpectedly_equivalent")
 

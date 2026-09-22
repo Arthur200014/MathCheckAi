@@ -88,8 +88,8 @@ def test_transcript_only_extractor_case_c_never_invents_part_b_or_repairs_period
     assert evidence.part_b_present is False
     assert evidence.selected_roots == []
     expressions = {x["expression"] for x in evidence.general_solution_families}
-    assert "pi*(n + 1/2)" in expressions  # student's wrong pi*n period is preserved
-    assert "pi*(4*n + 1)/2" not in expressions  # reference 2*pi*n family was NOT injected
+    assert "pi*(n + 1/2)" in expressions                                            
+    assert "pi*(4*n + 1)/2" not in expressions                                            
 
 
 def test_case_c_deterministic_math_is_zero_and_wrong_family_step_is_red_even_if_llm_says_all_correct():

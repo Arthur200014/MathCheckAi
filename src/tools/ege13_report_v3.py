@@ -56,12 +56,12 @@ def _format_pi_multiple(expr: sp.Expr) -> str:
 
 
 def _linear_parts_raw(expression: str, parameter: str) -> tuple[sp.Expr, sp.Expr] | None:
-    """Return the literal n=0 seed and positive period of a linear family.
 
-    Important: the seed is NOT reduced modulo the student's own period. A wrong
-    period is exactly the error we are trying to explain, so reducing by it would
-    move the base root and can make the correction point to a different branch.
-    """
+
+
+
+
+
     symbol = sp.Symbol(parameter, integer=True)
     try:
         expr = sp.expand(_sympify(expression, extra={parameter: symbol}))
@@ -78,7 +78,7 @@ def _linear_parts_raw(expression: str, parameter: str) -> tuple[sp.Expr, sp.Expr
 
 
 def _display_offset(seed: sp.Expr, period: sp.Expr) -> sp.Expr:
-    """Choose a familiar representative only for display of a verified family."""
+
     p = _pi_ratio(period)
     a = _pi_ratio(seed)
     if p is None or a is None or p <= 0:
@@ -127,7 +127,7 @@ def _family_equivalent(student: LinearFamily, reference: LinearFamily) -> bool:
 
 
 def _distance_to_family(value: sp.Expr, family: LinearFamily) -> float:
-    """Distance from a seed to the nearest member of a reference family."""
+
     try:
         q = float(sp.N((value - family.seed) / family.period, 30))
         nearest = round(q)
@@ -137,22 +137,22 @@ def _distance_to_family(value: sp.Expr, family: LinearFamily) -> float:
 
 
 def _match_reference_family(student: LinearFamily, refs: list[LinearFamily]) -> LinearFamily | None:
-    """Match an erroneous student family to the intended verified branch.
 
-    Matching uses mathematical provenance, not textual order or a special-case
-    formula. First we keep the student's literal n=0 root and ask which verified
-    family contains that value. This is the stable signal when the student wrote
-    the correct base root but the wrong period. If no branch contains the seed,
-    we compare several student-generated samples and then use cyclic distance as
-    a deterministic tie-breaker.
-    """
+
+
+
+
+
+
+
+
     if not refs:
         return None
 
     seed_matches = [ref for ref in refs if _belongs(student.seed, ref)]
     if seed_matches:
-        # If equivalent representations overlap, prefer the period closest to
-        # what the student wrote; this does not change the seed provenance.
+                                                                             
+                                                                           
         return min(
             seed_matches,
             key=lambda ref: abs(float(sp.N((student.period - ref.period) / sp.pi, 30))),
@@ -170,8 +170,8 @@ def _match_reference_family(student: LinearFamily, refs: list[LinearFamily]) -> 
 def _format_reference_part_a(state: ReviewState) -> str:
     refs = _reference_families(state)
     if refs:
-        # Familiar order: positive representative first, then negative ones
-        # closest to zero.
+                                                                           
+                          
         def order_key(ref: LinearFamily) -> float:
             shown = _display_offset(ref.seed, ref.period)
             try:
@@ -215,7 +215,7 @@ def _specific_reason(comment: str) -> str:
 
 
 def _family_corrections(step_text: str, state: ReviewState) -> tuple[str, list[str]]:
-    """Return a concrete reason + only the verified branches that need fixing."""
+
     refs = _reference_families(state)
     if not refs:
         return "", []
@@ -299,8 +299,8 @@ def _display_step_checks(state: ReviewState) -> list[dict[str, str]]:
             row["correction"] = correct_b
         else:
             row["comment"] = _specific_reason(row["comment"])
-            # For a generic algebraic step we only reuse a later step that was
-            # independently marked correct. We never invent an equation here.
+                                                                              
+                                                                             
             row["correction"] = _next_verified_formula(rows, i)
 
         if row["correction"]:
@@ -341,7 +341,7 @@ def _friendly_part_b(state: ReviewState, present: bool) -> str:
 
 
 def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
-    """Build student-facing report with mathematically matched corrections."""
+
     if state.get("status") != "REVIEWED":
         return {}
 

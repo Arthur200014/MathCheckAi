@@ -46,14 +46,14 @@ class ReferenceVerification:
 
 
 def _sympify(expr: str, *, extra: dict[str, Any] | None = None) -> sp.Expr:
-    # Use the same tolerant/fail-closed normalizer for LLM machine specs too.
-    # This makes harmless variants like π, √2 and ^ parse consistently while
-    # still rejecting stray prose/unknown identifiers.
+                                                                             
+                                                                            
+                                                      
     return _parse_math_expr(str(expr), extra=extra)
 
 
 def _extract_braced(text: str, start: int) -> tuple[str, int]:
-    """Return content of {...} starting at `start` and index after the closing brace."""
+
     if start >= len(text) or text[start] != "{":
         raise ValueError("latex_group_expected")
     depth = 0
@@ -68,14 +68,14 @@ def _extract_braced(text: str, start: int) -> tuple[str, int]:
 
 
 def _expand_latex_frac(text: str) -> str:
-    """Convert simple/nested LaTeX \\frac{a}{b} to ((a)/(b))."""
+
     while "\\frac" in text:
         idx = text.find("\\frac")
         pos = idx + len("\\frac")
         while pos < len(text) and text[pos].isspace():
             pos += 1
         if pos >= len(text) or text[pos] != "{":
-            # Leave unsupported form visible so identifier validation fails clearly.
+                                                                                    
             break
         num, after_num = _extract_braced(text, pos)
         pos = after_num
@@ -90,7 +90,7 @@ def _expand_latex_frac(text: str) -> str:
 
 
 def _expand_latex_sqrt(text: str) -> str:
-    """Convert LaTeX \\sqrt{...} to sqrt(...), including nested groups."""
+
     while "\\sqrt" in text:
         idx = text.find("\\sqrt")
         pos = idx + len("\\sqrt")
@@ -100,7 +100,7 @@ def _expand_latex_sqrt(text: str) -> str:
             body, after = _extract_braced(text, pos)
             text = text[:idx] + f"sqrt({_expand_latex_sqrt(body)})" + text[after:]
         else:
-            # Support common compact copy-paste: \sqrt2
+                                                       
             m = re.match(r"([0-9]+(?:[.,][0-9]+)?)", text[pos:])
             if not m:
                 break
@@ -110,7 +110,7 @@ def _expand_latex_sqrt(text: str) -> str:
 
 
 def _normalize_common_math_text(expr: str) -> str:
-    """Normalize Unicode/LaTeX variants before SymPy parsing."""
+
     text = str(expr or "")
     text = text.replace("\u00a0", " ").replace("\u202f", " ")
     text = text.replace("＝", "=")
@@ -119,9 +119,9 @@ def _normalize_common_math_text(expr: str) -> str:
     text = text.replace("·", "*").replace("×", "*").replace("⋅", "*").replace("∙", "*")
     text = text.replace("÷", "/")
     text = text.replace("²", "^2").replace("³", "^3")
-    text = re.sub(r"(?<=\d),(?=\d)", ".", text)  # decimal comma, e.g. 0,5
+    text = re.sub(r"(?<=\d),(?=\d)", ".", text)                           
 
-    # Common LaTeX tokens from API/manual input.
+                                                
     text = text.replace("\\left", "").replace("\\right", "")
     text = text.replace("\\cdot", "*").replace("\\times", "*")
     text = text.replace("\\pi", "pi")
@@ -133,21 +133,21 @@ def _normalize_common_math_text(expr: str) -> str:
         text = text.replace(latex_name, plain)
     text = _expand_latex_frac(text)
     text = _expand_latex_sqrt(text)
-    # log_{4} -> log_4 ; x^{...} -> x^(...)
+                                           
     text = re.sub(r"log_\{([^{}]+)\}", r"log_\1", text)
     def _latex_power_repl(match: re.Match[str]) -> str:
         body = match.group(1).strip()
         return "^" + body if re.fullmatch(r"[0-9]+", body) else f"^({body})"
     text = re.sub(r"\^\{([^{}]+)\}", _latex_power_repl, text)
-    # Remaining grouping braces from simple LaTeX become parentheses.
+                                                                     
     text = text.replace("{", "(").replace("}", ")")
 
-    # Radical symbol forms from Unicode/plain copy-paste.
+                                                         
     text = re.sub(r"√\s*\(([^()]+)\)", r"sqrt(\1)", text)
     text = re.sub(r"√\s*([0-9]+(?:\.[0-9]+)?)", r"sqrt(\1)", text)
 
-    # Common compact function forms that implicit multiplication would otherwise
-    # misread as letters: sinx, sin2x, cos2x, tanx, tgx.
+                                                                                
+                                                        
     text = re.sub(r"(?i)(sin|cos|tan|tg)(?=x\b)", lambda m: ("tan" if m.group(1).lower() == "tg" else m.group(1).lower()) + " ", text)
     text = re.sub(r"(?i)(sin|cos|tan|tg)(?=\d+x\b)", lambda m: ("tan" if m.group(1).lower() == "tg" else m.group(1).lower()) + " ", text)
 
@@ -171,24 +171,24 @@ def _find_matching_paren(text: str, start: int) -> int:
 
 
 def _parenthesize_bare_trig_calls(text: str) -> str:
-    """Make common school shorthand explicit before SymPy parsing.
 
-    Prevents `sin x * cos 2x` from being greedily interpreted as
-    `sin(x*cos(2*x))` by implicit-function parsing.
-    """
-    # Function powers first: sin^2 x, cos^3 2x.
+
+
+
+
+                                               
     power_pat = re.compile(
         r"(?i)\b(sin|cos|tan)\s*\^\s*([0-9]+)\s*"
         r"([+-]?\s*(?:(?:[0-9]+(?:\.[0-9]+)?(?:\s*[*/]\s*[0-9]+(?:\.[0-9]+)?)?)\s*\*?\s*)?(?:x|pi)(?:\s*/\s*[0-9]+)?)"
     )
     def repl_power(m: re.Match[str]) -> str:
         fn, power, arg = m.group(1).lower(), m.group(2), re.sub(r"\s+", "", m.group(3))
-        # Insert multiplication in 2x / 2pi after whitespace removal.
+                                                                     
         arg = re.sub(r"(?<=\d)(?=(?:x|pi)\b)", "*", arg)
         return f"({fn}({arg}))^{power}"
     text = power_pat.sub(repl_power, text)
 
-    # Plain bare calls: sin x, cos 2x, tan -x, sin pi/6.
+                                                        
     plain_pat = re.compile(
         r"(?i)\b(sin|cos|tan)\s+"
         r"([+-]?\s*(?:(?:[0-9]+(?:\.[0-9]+)?(?:\s*[*/]\s*[0-9]+(?:\.[0-9]+)?)?)\s*\*?\s*)?(?:x|pi)(?:\s*/\s*[0-9]+)?)"
@@ -201,13 +201,13 @@ def _parenthesize_bare_trig_calls(text: str) -> str:
 
 
 def _expand_log_base_calls(text: str) -> str:
-    """Convert school log-base notation to SymPy log(arg, base).
 
-    Supported examples:
-      log_4(4*sin(x))
-      log_4^2(4*sin(x))
-      log_(1/2)(x)  [after normalization]
-    """
+
+
+
+
+
+
     pattern = re.compile(r"log_([^\s\^\(]+|\([^()]+\))(?:\^([0-9]+))?\s*\(", re.IGNORECASE)
     cursor = 0
     while True:
@@ -233,11 +233,11 @@ def _expand_log_base_calls(text: str) -> str:
 
 
 def _validate_math_identifiers(text: str, *, extra: dict[str, Any] | None = None) -> None:
-    """Fail closed on stray prose/unknown names instead of multiplying letters.
 
-    This prevents bugs such as Russian instruction text silently becoming
-    `Р*а*в*е...` under implicit multiplication.
-    """
+
+
+
+
     allowed = set(SAFE_LOCALS) | {"E"}
     if extra:
         allowed.update(extra.keys())
@@ -248,12 +248,12 @@ def _validate_math_identifiers(text: str, *, extra: dict[str, Any] | None = None
 
 
 def _parse_math_expr(expr: str, *, extra: dict[str, Any] | None = None) -> sp.Expr:
-    """Parse a conservative, fail-closed subset of school mathematics."""
+
     text = _normalize_common_math_text(expr)
     text = _parenthesize_bare_trig_calls(text)
     text = _expand_log_base_calls(text)
-    # Keep caret notation for SymPy convert_xor/function-exponent parsing.
-    # `_expand_log_base_calls` may already emit explicit ** powers.
+                                                                          
+                                                                   
     text = text.strip(" .;,")
     if not text:
         raise ValueError("empty_math_expression")
@@ -275,17 +275,17 @@ def _parse_math_expr(expr: str, *, extra: dict[str, Any] | None = None) -> sp.Ex
 
 
 def _split_task_parts(task_statement: str) -> tuple[str, str]:
-    """Split a/b parts tolerating Cyrillic/Latin and common punctuation variants."""
+
     text = str(task_statement or "").replace("\u00a0", " ").replace("\u202f", " ").strip()
     if not text:
         raise ValueError("empty_task_statement")
 
-    # Accept: б), б., б:, b), B. and line-start `б` followed by whitespace.
+                                                                           
     marker = re.search(r"(?i)(?:^|[\s.;])([бb])\s*(?:\)|\.|:)(?=\s|$)", text)
     if marker:
         return text[:marker.start()].strip(), text[marker.end():].strip()
 
-    # Conservative fallback for `... . б Найдите ...` without punctuation.
+                                                                          
     marker = re.search(r"(?i)(?:^|[\s.;])[бb]\s+(?=(?:найдите|укажите|отберите)\b)", text)
     if marker:
         return text[:marker.start()].strip(), text[marker.end():].strip()
@@ -294,10 +294,10 @@ def _split_task_parts(task_statement: str) -> tuple[str, str]:
 
 def _strip_part_a_instruction(part_a: str) -> str:
     text = part_a.strip()
-    # Optional task number / label before part a.
+                                                 
     text = re.sub(r"^\s*(?:задание\s*)?(?:№\s*)?13(?:\.\d+)?\s*[:.\-]?\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"^\s*[аa]\s*(?:\)|\.|:)\s*", "", text, flags=re.IGNORECASE)
-    # Tolerate colon, period, dash or no punctuation after instruction.
+                                                                       
     marker = re.search(
         r"решите\s+(?:данное\s+)?уравнение\s*(?:[:.\-]\s*)?",
         text,
@@ -305,12 +305,12 @@ def _strip_part_a_instruction(part_a: str) -> str:
     )
     if marker:
         text = text[marker.end():]
-    # Remove a trailing sentence separator that precedes part b after splitting.
+                                                                                
     return text.strip().rstrip(". ")
 
 
 def _extract_part_a_equation(task_statement: str, variable_name: str) -> sp.Expr:
-    """Return LHS-RHS parsed independently from textual task_statement."""
+
     part_a, _ = _split_task_parts(task_statement)
     part_a = _strip_part_a_instruction(part_a)
     part_a = part_a.replace("＝", "=")
@@ -330,7 +330,7 @@ def _extract_part_a_equation(task_statement: str, variable_name: str) -> sp.Expr
 
 def _split_interval_content(content: str) -> tuple[str, str] | None:
     depth = 0
-    # Prefer semicolon; it is the standard Russian school interval separator.
+                                                                             
     for i, ch in enumerate(content):
         if ch == "(":
             depth += 1
@@ -339,8 +339,8 @@ def _split_interval_content(content: str) -> tuple[str, str] | None:
         elif ch == ";" and depth == 0:
             return content[:i], content[i + 1:]
 
-    # Fallback comma separator, but only at top level and with visible spacing
-    # or when it is the only comma. Decimal commas have already been normalized.
+                                                                              
+                                                                                
     depth = 0
     comma_positions: list[int] = []
     for i, ch in enumerate(content):
@@ -357,11 +357,11 @@ def _split_interval_content(content: str) -> tuple[str, str] | None:
 
 
 def _extract_interval_match(part_b: str) -> tuple[str, str, str, str] | None:
-    """Find the first plausible interval without being confused by nested fractions.
 
-    Regex like `[^)]` is unsafe after LaTeX normalization because `\\frac{a}{b}`
-    becomes `((a)/(b))`. This scanner keeps nested parentheses inside endpoints.
-    """
+
+
+
+
     for start, ch in enumerate(part_b):
         if ch not in "[(":
             continue
@@ -389,12 +389,12 @@ def _extract_interval_match(part_b: str) -> tuple[str, str, str, str] | None:
 
 
 def _extract_part_b_interval(task_statement: str) -> tuple[sp.Expr, sp.Expr, bool, bool]:
-    """Parse interval from part (b) independently from Solver output."""
+
     _, part_b = _split_task_parts(task_statement)
     if not part_b:
-        # Keep a fallback over the full statement for old inputs lacking a b marker.
+                                                                                    
         part_b = str(task_statement or "")
-    # Normalize LaTeX wrappers such as \left[ ... \right] and \frac before regex.
+                                                                                 
     part_b = _normalize_common_math_text(part_b)
 
     groups = _extract_interval_match(part_b)
@@ -508,19 +508,19 @@ def _enumerate_integer_family(
     left_closed: bool,
     right_closed: bool,
 ) -> tuple[list[sp.Expr], list[str]]:
-    """Enumerate common ЕГЭ integer-parameter solution families safely.
 
-    First handles ordinary linear families a + b*n.  If the expression is not
-    linear only because it uses the standard alternating trig form (-1)^n,
-    split it into even/odd parameter branches and prove that each branch is
-    linear before enumerating.  This supports school forms such as
 
-        x = (-1)^n * alpha + pi*n
 
-    without falling back to an unbounded brute-force search.  Arbitrary
-    nonlinear parameterisations (n**2, exp(n), etc.) remain fail-closed and
-    require manual review.
-    """
+
+
+
+
+
+
+
+
+
+
     roots, errors = _enumerate_linear_family(
         expression,
         parameter,
@@ -541,9 +541,9 @@ def _enumerate_integer_family(
     except Exception as exc:
         return [], [f"family_parse_failed:{expression}:{exc}"]
 
-    # Only attempt parity decomposition when the expression genuinely contains
-    # a (-1)**f(parameter) term.  This avoids pretending that arbitrary
-    # nonlinear families are completely enumerable.
+                                                                              
+                                                                       
+                                                   
     has_parity_term = any(
         isinstance(power, sp.Pow)
         and _equal(power.base, sp.Integer(-1))
@@ -589,7 +589,7 @@ def _imageset_to_family(imageset: sp.ImageSet) -> dict[str, str] | None:
         source_var = variables[0]
         n = sp.Symbol("n", integer=True)
         expr = sp.simplify(imageset.lamda.expr.subs(source_var, n))
-        # Only use families linear in n; interval enumeration is then deterministic.
+                                                                                    
         slope = sp.simplify(sp.diff(expr, n))
         intercept = sp.simplify(expr.subs(n, 0))
         if n in slope.free_symbols or sp.simplify(expr - (slope * n + intercept)) != 0 or slope == 0:
@@ -600,7 +600,7 @@ def _imageset_to_family(imageset: sp.ImageSet) -> dict[str, str] | None:
 
 
 def _families_from_solution_set(solution_set: sp.Set) -> list[dict[str, str]]:
-    """Extract linear integer-parameter families from SymPy solveset output."""
+
     items = list(solution_set.args) if isinstance(solution_set, sp.Union) else [solution_set]
     families: list[dict[str, str]] = []
     for item in items:
@@ -611,8 +611,8 @@ def _families_from_solution_set(solution_set: sp.Set) -> list[dict[str, str]]:
         elif item == sp.S.EmptySet:
             continue
         else:
-            # Finite sets are unusual for EGE-13-with-interval and intentionally
-            # not converted to fake periodic families here.
+                                                                                
+                                                           
             continue
     return families
 
@@ -631,15 +631,15 @@ def _solve_families_independently(residual: sp.Expr, variable: sp.Symbol) -> tup
 
 
 def _canonicalize_periodic_families(families: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Collapse a common two-family SymPy trig representation when possible.
 
-    Example:
-      5*pi/6 + 2*pi*n  union  11*pi/6 + 2*pi*n
-    becomes the school-friendly equivalent:
-      -pi/6 + pi*n
 
-    If a safe collapse cannot be proven symbolically, return the original list.
-    """
+
+
+
+
+
+
+
     if len(families) != 2:
         return families
     try:
@@ -661,7 +661,7 @@ def _canonicalize_periodic_families(families: list[dict[str, str]]) -> list[dict
         period = sp.simplify(abs(s1))
         half = sp.simplify(period / 2)
         diff = sp.simplify(a2 - a1)
-        # The two residue classes must differ by exactly half the common period.
+                                                                                
         if not (sp.simplify(abs(diff) - half) == 0 or sp.simplify(sp.Mod(diff, period) - half) == 0):
             return families
 
@@ -687,16 +687,16 @@ def _format_part_a(families: list[dict[str, str]]) -> str:
 
 
 def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str = "") -> ReferenceVerification:
-    """Build/verify an authoritative reference using task_statement as trust root.
 
-    Trust boundary in Stage 2.4.2:
-    1. Equation and interval are reconstructed from the user's task_statement.
-    2. SymPy `solveset` is attempted independently and becomes authoritative when
-       it yields supported linear ImageSet families.
-    3. LLM Solver families/selected roots are treated only as untrusted claims.
-    4. If Solver JSON is missing/truncated, supported tasks can still proceed via
-       deterministic fallback instead of collapsing the graph.
-    """
+
+
+
+
+
+
+
+
+
     spec = spec if isinstance(spec, dict) else {}
     results: list[str] = []
     discrepancies: list[str] = []
@@ -704,7 +704,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
     variable_name = str(spec.get("variable", "x")).strip() or "x"
     x = sp.Symbol(variable_name, real=True)
 
-    # 1) Trusted equation from task statement.
+                                              
     try:
         residual = _extract_part_a_equation(task_statement, variable_name)
         results.append(f"equation_reconstructed_independently:{sp.sstr(residual)}")
@@ -721,7 +721,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
             [],
         )
 
-    # 2) Trusted interval from task statement.
+                                              
     try:
         left, right, left_closed, right_closed = _extract_part_b_interval(task_statement)
         if float(sp.N(left)) > float(sp.N(right)):
@@ -744,7 +744,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
             [],
         )
 
-    # 3) Independent deterministic solve. This is authoritative if supported.
+                                                                             
     deterministic_families, solve_note = _solve_families_independently(residual, x)
     if deterministic_families:
         original_count = len(deterministic_families)
@@ -756,7 +756,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
     else:
         results.append(solve_note)
 
-    # 4) Inspect untrusted Solver families for traceability.
+                                                            
     solver_families_raw = spec.get("general_solution_families", [])
     solver_families: list[dict[str, str]] = []
     if isinstance(solver_families_raw, list):
@@ -778,7 +778,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
     elif solver_families_raw:
         discrepancies.append("solver_general_solution_families_not_list")
 
-    # Authoritative families: independent SymPy first; verified Solver only as fallback.
+                                                                                        
     if deterministic_families:
         authoritative_families = deterministic_families
         fallback_used = not bool(solver_families)
@@ -801,7 +801,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
             [],
         )
 
-    # Compare Solver-provided interval with trusted interval, if any.
+                                                                     
     part_b = spec.get("part_b", {})
     selected_raw: list[Any] = []
     if isinstance(part_b, dict):
@@ -824,7 +824,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
     elif part_b:
         discrepancies.append("solver_part_b_not_object")
 
-    # 5) Deterministically enumerate part-b roots from authoritative families.
+                                                                              
     expected_values: list[sp.Expr] = []
     hard_errors: list[str] = []
     for family in authoritative_families:
@@ -861,7 +861,7 @@ def verify_ege13_reference(spec: dict[str, Any] | None, *, task_statement: str =
         + (",".join(expected_roots) if expected_roots else "empty")
     )
 
-    # 6) Inspect Solver selected roots, but never trust them.
+                                                             
     selected_values: list[sp.Expr] = []
     for raw in selected_raw:
         if str(raw).strip() == "":

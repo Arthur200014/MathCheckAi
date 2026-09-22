@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 def _normalized_lines(text: str) -> list[str]:
-    # Order matters: ``\newline`` starts with ``\n``.
+                                                     
     raw = str(text or "").replace(r"\newline", "\n").replace(r"\n", "\n")
     raw = raw.replace(r"\\", "\n")
     return [line.strip() for line in raw.splitlines() if line.strip()]
@@ -53,11 +53,11 @@ def _normalize_inequality_text(text: str) -> str:
 
 
 def _strip_operation_note(text: str) -> str:
-    """Drop a handwritten operation note after the right boundary.
 
-    Examples: ``-3π/2 /:π``, ``-3π/2 | :π``.  We remove only a trailing
-    operation annotation; mathematical division inside the endpoint is kept.
-    """
+
+
+
+
     value = str(text or "").strip()
     value = re.sub(r"\s+(?:/|:|\|)\s*:?\s*(?:π|pi)\s*$", "", value, flags=re.IGNORECASE)
     value = re.sub(r"\s+\|\s*.*$", "", value)
@@ -75,18 +75,18 @@ class _ChainCandidate:
 
 
 def _extract_chained_interval(text: str) -> tuple[str, str]:
-    """Recover the task interval from the student's visible part-b selection work.
 
-    This does *not* solve the task or infer bounds from final roots.  It reads a
-    bound pair the student actually wrote while substituting a general solution
-    into the task interval, e.g. ``-3π ≤ π/2 + 2πn ≤ -3π/2``.
 
-    Selection is structural rather than task-specific:
-    - prefer inequalities in the part-b region;
-    - prefer the angle-scale line (π/x/family still visible) over inequalities
-      obtained after dividing by π;
-    - prefer boundary pairs repeated across several solution branches.
-    """
+
+
+
+
+
+
+
+
+
+
     lines = _normalized_lines(_normalize_inequality_text(text))
     candidates: list[_ChainCandidate] = []
     in_part_b = False
@@ -151,14 +151,14 @@ def _extract_chained_interval(text: str) -> tuple[str, str]:
 
 
 def extract_task_equation_draft(transcript: str, detected_statement: str = "") -> tuple[str, str]:
-    """Extract the task equation from the student's visible work.
 
-    Product rule for EGE-13: the uploaded photo normally contains the student's
-    solution, not the printed task. Students rewrite the source equation at the
-    beginning, so that literal first equation is the primary task-equation draft.
 
-    We never solve, simplify or repair the equation here.
-    """
+
+
+
+
+
+
     for line in _normalized_lines(transcript)[:8]:
         candidate = _strip_solution_prefix(line)
         if "=" not in candidate:
@@ -176,7 +176,7 @@ def extract_task_equation_draft(transcript: str, detected_statement: str = "") -
 
 
 def extract_interval_draft(transcript: str, detected_statement: str = "") -> tuple[str, str]:
-    """Extract visible interval evidence; never infer it from roots/reference."""
+
     combined = "\n".join([str(transcript or ""), str(detected_statement or "")])
     normalized = _normalize_inequality_text(combined)
 
@@ -192,7 +192,7 @@ def extract_interval_draft(transcript: str, detected_statement: str = "") -> tup
 
 
 def normalize_interval_input(interval: str) -> str:
-    """Normalize a human-friendly interval to bracket form without changing endpoints."""
+
     text = str(interval or "").strip()
     if not text:
         return ""
@@ -216,11 +216,11 @@ def build_ege13_task_statement(equation: str, interval: str) -> str:
 
 
 def _has_ambiguous_trig_argument(equation: str) -> bool:
-    """Catch OCR/user text like ``sin x (x+π)`` before it reaches SymPy.
 
-    Such text is ambiguous: it may mean ``sin(x+π)`` or the product
-    ``sin(x) * (x+π)``.  For EGE-13 we require the user to make that explicit.
-    """
+
+
+
+
     text = str(equation or "")
     trig = r"(?:\\?(?:sin|cos|tan|tg|ctg|cot))"
     return bool(re.search(rf"{trig}\s*x\s*\(", text, flags=re.IGNORECASE))
@@ -260,7 +260,7 @@ def task_fields_issue_message(issues: list[str]) -> str:
     return "; ".join(labels.get(item, item) for item in issues)
 
 
-# Backward-compatible helpers retained for old tests/clients.
+                                                             
 def infer_task_statement_draft(detected_statement: str, transcript: str) -> tuple[str, str]:
     equation, source = extract_task_equation_draft(transcript, detected_statement)
     interval, _ = extract_interval_draft(transcript, detected_statement)

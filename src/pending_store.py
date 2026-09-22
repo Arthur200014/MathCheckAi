@@ -55,7 +55,7 @@ def load_pending_image_b64(review_id: str) -> str | None:
 
 
 def save_pending_state(review_id: str, state: dict[str, Any]) -> Path:
-    """Persist only safe structured interim state, never base64 image bytes."""
+
     cleanup_old_pending()
     rid = _safe_review_id(review_id)
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
@@ -102,7 +102,7 @@ def delete_pending(review_id: str) -> None:
 
 
 def delete_pending_image(review_id: str) -> None:
-    # Backward-compatible alias used by older tests/imports.
+                                                            
     rid = _safe_review_id(review_id)
     path = PENDING_DIR / f"{rid}.jpg"
     try:

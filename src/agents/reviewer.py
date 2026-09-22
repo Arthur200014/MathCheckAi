@@ -33,7 +33,7 @@ def _schema() -> dict[str, Any]:
 
 
 def _call_once(system_prompt: str, user_prompt: str) -> dict[str, Any]:
-    """Exactly one compact Reviewer call; no retry and no output cap."""
+
     return ollama_chat_json(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -58,13 +58,13 @@ def _reviewer_telemetry_fields(llm_or_telemetry: dict[str, Any] | None) -> dict[
 
 
 def reviewer_agent(state: ReviewState) -> dict:
-    """Fourth agent: advisory consistency audit that can never erase a score.
 
-    Once a human-confirmed transcript has produced a deterministic draft score,
-    Reviewer may warn about inconsistencies but never suppress or replace that
-    score. This removes the old failure mode where a cautious Reviewer converted
-    a valid grading result into MANUAL_REVIEW_REQUIRED with no grade.
-    """
+
+
+
+
+
+
     if state.get("task_type") != "ege_13":
         return {
             "reviewer_ok": False,
@@ -74,8 +74,8 @@ def reviewer_agent(state: ReviewState) -> dict:
         }
 
     if state.get("draft_score") is None:
-        # This should be unreachable for a confirmed EGE-13 transcript in the
-        # source-locked Grader. Preserve fail-closed behavior only here.
+                                                                             
+                                                                        
         return {
             "reviewer_ok": False,
             "reviewer_manual_review_required": True,
@@ -178,7 +178,7 @@ AUDIT DATA: {json.dumps(audit, ensure_ascii=False)}
             reasons = [str(x) for x in llm.get("reason_codes", [])]
             reviewer_manual = bool(llm.get("manual_review_required", False)) or not consistent
         else:
-            # Backward-compatible interpretation of older compact reviewer mocks.
+                                                                                 
             proposed = int(llm.get("proposed_score", draft_score))
             reviewer_manual = bool(llm.get("manual_review_required", False)) or proposed != draft_score
             consistent = not reviewer_manual
@@ -230,7 +230,7 @@ AUDIT DATA: {json.dumps(audit, ensure_ascii=False)}
     if explicit_final_answer_mismatch:
         reviewer_overrides.append("reviewer_llm_score_overridden_by_explicit_final_answer:score_is_immutable")
 
-    # The deterministic score is immutable at Reviewer stage.
+                                                             
     return {
         "reviewer_ok": not bool(deterministic_conflicts) and not bool(llm_error),
         "reviewer_model": str(llm.get("_model", get_reviewer_model())),

@@ -17,7 +17,7 @@ REPORT_DIR = Path("/tmp/mathcheck-ai/report-assets")
 
 
 def extract_solution_steps(transcript: str, *, max_steps: int = 24) -> list[dict[str, str]]:
-    """Return stable user-visible step ids from the shared deterministic parser."""
+
     texts = split_solution_step_texts(transcript, max_steps=max_steps)
     return [{"step_id": f"S{i}", "text": text} for i, text in enumerate(texts, start=1)]
 
@@ -96,7 +96,7 @@ def _latex(expr: sp.Expr) -> str:
 
 
 def _human_math(value: str) -> str:
-    """Presentation-only conversion: no raw LaTeX in the student-facing report."""
+
     text = latex_to_human_text(str(value or "")).replace("$", "")
     lines: list[str] = []
     for raw in text.splitlines() or [text]:
@@ -177,7 +177,7 @@ def _first_incorrect_comment(step_checks: list[dict[str, str]]) -> str:
         comment = str(row.get("comment", "")).strip()
         if not comment:
             continue
-        # Keep the summary short; the full comment is still visible on the step.
+                                                                                
         comment = re.sub(r"\s+", " ", comment)
         if len(comment) > 150:
             comment = comment[:147].rstrip() + "…"
@@ -231,7 +231,7 @@ def _friendly_summary(*, score: int, max_score: int, part_a: str, part_b: str, p
     if part_a.startswith("Вычислительная ошибка"):
         return "Вычислительная ошибка."
     if part_a != "Верно.":
-        # The detailed reason is displayed immediately below in the part-a row.
+                                                                               
         if part_a.startswith("Ошибка в общем решении"):
             return "Ошибка в общем решении."
         if part_a.startswith("Неверное преобразование"):
@@ -250,7 +250,7 @@ def render_verified_trig_circle(
     task_statement: str,
     expected_roots: list[str],
 ) -> Path:
-    """Render the verified roots and the correct part-b interval in the UI palette."""
+
     import matplotlib
 
     matplotlib.use("Agg")
@@ -285,7 +285,7 @@ def render_verified_trig_circle(
     ax.text(1.15, -0.07, "x", fontsize=10, color=muted)
     ax.text(0.05, 1.15, "y", fontsize=10, color=muted)
 
-    # Highlight the actual interval of part b with the same amber accent as the UI.
+                                                                                   
     if span >= 2 * math.pi - 1e-9:
         arc_start_deg, arc_end_deg = 0.0, 360.0
     else:
@@ -380,7 +380,7 @@ def report_circle_path(review_id: str) -> Path:
 
 
 def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
-    """Build a concise Russian student-facing report without another LLM call."""
+
     if state.get("status") != "REVIEWED":
         return {}
 

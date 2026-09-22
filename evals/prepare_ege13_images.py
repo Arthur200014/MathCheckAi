@@ -1,20 +1,20 @@
-"""Prepare local EGE-13 benchmark images from the expert PDF.
 
-The repository keeps the official/expert source PDF, but benchmark images must
-NOT contain the printed official answer or the expert comment because that would
-leak the ground truth to Vision. Crop boxes live in benchmark_cases.json.
 
-The source PDF has a selectable text layer for the printed labels ``Ответ:`` and
-``Комментарий.``.  The handwritten solution is an image.  We therefore use the
-case crop as a coarse box and then automatically trim those printed regions out
-using the PDF text layer.  This is safer than relying on hand-picked Y values.
 
-Usage:
-    pip install -r requirements-eval.txt
-    python evals/prepare_ege13_images.py
 
-Output is written to local_eval_data/ (gitignored).
-"""
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import argparse
 import json
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import fitz           
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASES = ROOT / "evals" / "task_13" / "benchmark_cases.json"
@@ -52,11 +52,11 @@ def _clip_from_normalized(page: fitz.Page, crop: list[float]) -> fitz.Rect:
 
 
 def _trim_printed_ground_truth(page: fitz.Page, clip: fitz.Rect) -> tuple[fitz.Rect, list[str]]:
-    """Remove printed answer/header and expert comment from a coarse crop.
 
-    Only searchable PDF text is used for the trimming decision.  Handwritten
-    content is never OCRed or interpreted here.
-    """
+
+
+
+
     out = fitz.Rect(clip)
     notes: list[str] = []
     margin = 8.0
@@ -65,8 +65,8 @@ def _trim_printed_ground_truth(page: fitz.Page, clip: fitz.Rect) -> tuple[fitz.R
     for hit in answer_hits:
         if hit.y1 <= out.y0 or hit.y0 >= out.y1:
             continue
-        # In this source the printed official answer is the line immediately
-        # above the handwritten work.  Start below the whole printed line.
+                                                                            
+                                                                          
         new_top = min(out.y1 - 1.0, hit.y1 + margin)
         if new_top > out.y0:
             out.y0 = new_top

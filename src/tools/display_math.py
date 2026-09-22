@@ -14,7 +14,7 @@ _SUBSCRIPTS = str.maketrans("0123456789+-=()", "₀₁₂₃₄₅₆₇₈₉�
 
 
 def _group(text: str, start: int) -> tuple[str, int] | None:
-    """Return braced content and index after closing brace."""
+
     if start >= len(text) or text[start] != "{":
         return None
     depth = 0
@@ -192,7 +192,7 @@ def _inline(text: str) -> str:
             i += 1
             continue
 
-        # Unknown command: remove the slash but keep the command name visible.
+                                                                              
         if text[i] == "\\":
             m = re.match(r"\\([A-Za-z]+)", text[i:])
             if m:
@@ -207,21 +207,21 @@ def _inline(text: str) -> str:
 
 
 def latex_to_human_text(value: str) -> str:
-    """Convert OCR LaTeX-ish text to an editable, human-readable Unicode form."""
+
     text = str(value or "")
-    # Models sometimes emit literal escaped newlines inside a JSON string.
+                                                                          
     text = text.replace(r"\n", "\n")
     text = text.replace(r"\newline", "\n")
-    # LaTeX line break (two consecutive backslashes).
+                                                     
     text = text.replace("\\\\", "\n")
     text = _inline(text)
-    # Make the draft look like ordinary school mathematics rather than source code.
+                                                                                   
     text = re.sub(r"\^2(?![0-9])", "²", text)
     text = re.sub(r"\^3(?![0-9])", "³", text)
     text = re.sub(r"\b(sin|cos|tan|tg)(?=[0-9xπ√])", r"\1 ", text)
     text = re.sub(r"(?<=[0-9)])(?=(?:sin|cos|tan|tg)\b)", " ", text)
     text = re.sub(r"(?<=√[0-9])(?=(?:sin|cos|tan|tg)\b)", " ", text)
-    # Clean formatting artefacts without changing mathematical symbols.
+                                                                       
     lines: list[str] = []
     for raw_line in text.splitlines():
         line = re.sub(r"[ \t]+", " ", raw_line).strip()

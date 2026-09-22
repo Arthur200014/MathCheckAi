@@ -26,7 +26,7 @@ def _append_jsonl(path: Path, row: dict[str, Any]) -> None:
         with path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     except OSError:
-        # Observability must never break the grading flow.
+                                                          
         pass
 
 
