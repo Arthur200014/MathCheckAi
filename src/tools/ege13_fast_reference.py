@@ -20,8 +20,7 @@ from src.tools.ege13_reference import (
     _verify_family_samples,
 )
 
-# Exact school trig equations do not always reduce to special angles.  Keep
-# inverse-trig constants parseable by the shared deterministic family pipeline.
+
 _reference_math.SAFE_LOCALS.update({
     "asin": sp.asin,
     "acos": sp.acos,
@@ -60,8 +59,7 @@ def _machine_friendly_family(expr: sp.Expr, parameter: sp.Symbol) -> bool:
     other = expr.free_symbols - {parameter}
     if other:
         return False
-    # asin/acos/atan of exact constants are safe and remain linear in the integer
-    # parameter. Mod is not accepted because it breaks deterministic enumeration.
+  
     if expr.has(sp.Mod):
         return False
     return True
