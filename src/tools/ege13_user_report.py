@@ -382,3 +382,4 @@ def build_user_report_node(state: ReviewState) -> dict[str, Any]:
     if circle_error:
         report["render_warning"] = f"Не удалось построить окружность: {circle_error}"
     return {"report": report, "report_circle_url": circle_url}
+# fix

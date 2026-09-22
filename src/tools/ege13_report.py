@@ -441,3 +441,4 @@ def build_compact_report_node(state: ReviewState) -> dict[str, Any]:
         report["render_warning"] = f"Не удалось построить окружность: {circle_error}"
 
     return {"report": report, "report_circle_url": circle_url}
+# fix

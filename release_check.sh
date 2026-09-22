@@ -17,3 +17,4 @@ echo "[3/3] Unit/integration tests"
 pytest -q
 
 echo "RELEASE CHECK OK"
+# fix

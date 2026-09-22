@@ -294,3 +294,4 @@ def task_statement_issue_message(issues: list[str]) -> str:
         "part_b_interval_missing": "не найден интервал пункта б (например [-3π; -3π/2])",
     }
     return "; ".join(labels.get(item, item) for item in issues)
+# fix

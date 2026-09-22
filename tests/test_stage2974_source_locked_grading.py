@@ -160,3 +160,4 @@ def test_reviewer_advisory_never_erases_existing_score():
     assert out["final_score"] == 0
     assert out["status"] == "REVIEWED"
     assert out["reviewer_manual_review_required"] is True
+# fix

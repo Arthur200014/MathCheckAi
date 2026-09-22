@@ -201,3 +201,4 @@ TASK-SPECIFIC SKILL (используй как ориентир, но ответ
     if not solver_ok:
         payload["warnings"] = list(state.get("warnings", [])) + ["solver:low_confidence_or_incomplete_output"]
     return payload
+# fix

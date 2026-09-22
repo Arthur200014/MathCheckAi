@@ -90,3 +90,4 @@ def test_conflicting_visual_passes_become_unverified_not_penalty():
     assert result["diagram_manual_review_scope"] == ""
     assert result["diagram_reinspection_resolved"] is False
     assert "diagram_final_unverified_no_automatic_penalty" in result["diagram_verification_results"]
+# fix

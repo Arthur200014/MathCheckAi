@@ -38,3 +38,4 @@ def get_diagram_model() -> str:
 
 def get_ollama_base_url() -> str:
     return os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+# fix

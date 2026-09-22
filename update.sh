@@ -31,3 +31,4 @@ echo
 echo "Обновление завершено."
 echo "Текущий commit: $(git rev-parse --short HEAD)"
 echo "Для запуска: bash run.sh"
+# fix

@@ -344,3 +344,4 @@ def verify_ege13_diagram(
         return DiagramVerification("DIAGRAM_UNVERIFIED", None, True, results, issues, checked)
 
     return DiagramVerification("DIAGRAM_VERIFIED", True, True, results, issues, checked)
+# fix

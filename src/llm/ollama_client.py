@@ -435,3 +435,4 @@ def ollama_runtime_info(timeout: int = 5) -> dict[str, Any]:
         except Exception as exc:
             out[key] = {"error": str(exc)}
     return out
+# fix

@@ -11,3 +11,4 @@ def test_graph_has_four_agent_nodes_in_one_langgraph_flow():
     assert '{"unsupported": END, "continue": "vision"}' in text
     assert '{"stop_for_confirmation": END, "solver": "solver"}' in text
     assert 'graph.add_edge("grader", "reviewer")' in text
+# fix

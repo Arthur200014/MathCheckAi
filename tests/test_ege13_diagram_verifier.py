@@ -297,3 +297,4 @@ def test_unreadable_single_point_stays_unverified_not_student_error():
     )
     assert result.status == "DIAGRAM_UNVERIFIED"
     assert result.part_b_valid is None
+# fix

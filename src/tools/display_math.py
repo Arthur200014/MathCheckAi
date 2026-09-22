@@ -230,3 +230,4 @@ def latex_to_human_text(value: str) -> str:
         if line:
             lines.append(line)
     return "\n".join(lines).strip()
+# fix

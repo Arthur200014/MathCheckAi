@@ -42,3 +42,4 @@ def test_solver_requests_small_machine_first_json(monkeypatch):
     assert "reference_solution" not in schema["properties"]
     assert "reference_steps" not in schema["properties"]
     assert "final_answer" not in schema["properties"]
+# fix
