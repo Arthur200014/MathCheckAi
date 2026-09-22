@@ -53,9 +53,7 @@ def route_after_task_profile(state: ReviewState) -> str:
 
 
 def route_after_reference(state: ReviewState) -> str:
-    # A human-confirmed EGE-13 solution must always reach Grader and receive a
-    # score. Reference verification is strong evidence when available, but a
-    # verifier limitation is an advisory condition, not a reason to skip grading.
+    
     return "grade"
 
 
