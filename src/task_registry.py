@@ -4,11 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TaskProfile(BaseModel):
-    """Declarative description of one supported exam task type.
-
-    LangGraph does not branch on concrete task numbers. Agents read this profile
-    from ReviewState and load task-specific skills/criteria/tools from it.
-    """
+    
 
     model_config = ConfigDict(frozen=True)
 
@@ -82,8 +78,7 @@ TASK_REGISTRY: dict[str, TaskProfile] = {
         ],
         implementation_note="Task pack №13: 4-agent sequential LangGraph flow for one local accelerator; original-quality Vision input; deterministic SymPy reference verification; mandatory human confirmation of task statement + student OCR; source-locked student evidence from confirmed transcript; deterministic family/root verification; compact per-step expert report; verified trig-circle renderer. Student diagram OCR is deferred from MVP for latency.",
     ),
-    # Registered now so the architecture already knows about the next MVP type.
-    # It is intentionally disabled until its own skills/criteria are prepared.
+   
     "ege_15": TaskProfile(
         id="ege_15",
         title="Неравенство",
@@ -120,7 +115,7 @@ def get_task_profile(task_type: str, *, require_enabled: bool = True) -> TaskPro
 
 
 def list_task_profiles() -> list[dict]:
-    """Safe public summary for Swagger/demo."""
+    
     return [
         {
             "id": profile.id,
@@ -136,7 +131,7 @@ def list_task_profiles() -> list[dict]:
 
 
 def load_task_profile_node(state: dict) -> dict:
-    """LangGraph node: resolve task_type once and attach serializable profile."""
+    
     try:
         profile = get_task_profile(state.get("task_type", ""))
     except (UnknownTaskTypeError, TaskTypeNotImplementedError) as exc:
