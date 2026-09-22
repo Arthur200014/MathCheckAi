@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.tools.ege13_reasoning import deterministic_reasoning_overrides_ege13
-from src.tools.ege13_user_report_exact import build_user_report_node
+from src.tools.ege13_user_report import build_user_report_node
 
 
 def test_case_split_branches_are_not_marked_wrong_for_not_being_globally_equivalent():
@@ -71,3 +71,4 @@ def test_browser_report_is_not_a_step_by_step_green_red_list():
     assert 'id="steps"' not in html
     assert "Шаг ${i+1}" not in html
     assert "Комментарий эксперта" in html
+# fix

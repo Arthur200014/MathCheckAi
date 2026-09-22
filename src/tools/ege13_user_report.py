@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -331,7 +330,11 @@ def build_user_report_node(state: ReviewState) -> dict[str, Any]:
         or state.get("grader_part_a_equivalent") is True
     )
     if part_a_equivalent:
-        comments = [item for item in comments if str(item.get("section", "")).strip().lower() not in {"а", "a"}]
+        comments = [
+            item
+            for item in comments
+            if str(item.get("section", "")).strip().lower() not in {"а", "a"}
+        ]
 
     part_a = "Верно." if part_a_equivalent else _part_a_summary(state, comments)
     part_b = _part_b_summary(state, comments)
@@ -373,10 +376,16 @@ def build_user_report_node(state: ReviewState) -> dict[str, Any]:
         "expert_comment": summary,
         "correct_answer_part_a": _format_reference_part_a(state),
         "correct_answer_part_b": _format_reference_part_b(state),
-        "student_diagram_status": "NOT_ANALYZED_MVP",
-        "student_diagram_comment": "Окружность ученика отдельно не распознаётся в текущем MVP.",
-        "reference_circle_url": circle_url,
-        "reference_circle_error": circle_error,
+        "correct_trig_circle_url": circle_url,
+        "correct_trig_circle_source": "verified_reference" if circle_url else "",
+        "agent_timings_seconds": {
+            "vision": float(state.get("vision_elapsed_seconds", 0) or 0),
+            "solver": float(state.get("solver_elapsed_seconds", 0) or 0),
+            "grader": float(state.get("grader_elapsed_seconds", 0) or 0),
+            "reviewer": float(state.get("reviewer_elapsed_seconds", 0) or 0),
+        },
     }
-    return {"report": report}
+    if circle_error:
+        report["render_warning"] = f"Не удалось построить окружность: {circle_error}"
+    return {"report": report, "report_circle_url": circle_url}
 # fix
