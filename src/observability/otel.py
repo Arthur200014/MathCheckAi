@@ -5,12 +5,23 @@ student text, OCR content, image bytes or prompts as span attributes.
 """
 from __future__ import annotations
 
+import json
+import logging
 import os
+import time
+from functools import wraps
 from contextlib import contextmanager
 from typing import Iterator
 
 from opentelemetry import metrics, trace
 from opentelemetry.trace import Status, StatusCode
+
+_LOGGER = logging.getLogger("mathcheck.telemetry")
+_LOGGER.setLevel(logging.INFO)
+_LOGGER.propagate = False
+_log_provider = None
+_http_calls = None
+_http_duration = None
 
 _configured = False
 _stage_calls = None
@@ -26,6 +37,7 @@ def otel_enabled() -> bool:
 def configure_otel(app) -> bool:
     """Configure OTLP exporters and FastAPI exactly once, when explicitly enabled."""
     global _configured, _stage_calls, _stage_duration, _stage_errors, _completed_reviews
+    global _log_provider, _http_calls, _http_duration
     if _configured:
         return True
     if not otel_enabled():
@@ -34,6 +46,9 @@ def configure_otel(app) -> bool:
     from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
     from opentelemetry.sdk.resources import Resource
@@ -73,7 +88,23 @@ def configure_otel(app) -> bool:
     _completed_reviews = meter.create_counter(
         "mathcheck.reviews.completed", description="Reviews persisted successfully", unit="1",
     )
+    _http_calls = meter.create_counter(
+        "mathcheck.http.requests", description="HTTP requests served", unit="1",
+    )
+    _http_duration = meter.create_histogram(
+        "mathcheck.http.duration", description="HTTP request duration", unit="s",
+    )
 
+    log_provider = LoggerProvider(resource=resource)
+    log_provider.add_log_record_processor(BatchLogRecordProcessor(
+        OTLPLogExporter(endpoint=endpoint, insecure=insecure, timeout=5),
+    ))
+    _log_provider = log_provider
+    _LOGGER.addHandler(LoggingHandler(level=logging.INFO, logger_provider=log_provider))
+
+    # The HTTP logger is inner middleware and the OTel FastAPI tracer is outer.
+    # This keeps logs correlated to their current HTTP trace.
+    app.add_middleware(HttpTelemetryMiddleware)
     FastAPIInstrumentor.instrument_app(
         app,
         tracer_provider=tracer_provider,
@@ -111,3 +142,110 @@ def record_stage_completion(*, stage: str, status: str, duration: float) -> None
         _stage_errors.add(1, attributes={"stage": stage})
     if stage == "persist_review" and status == "done":
         _completed_reviews.add(1)
+
+
+def emit_event(
+    event: str, *, status: str = "done", stage: str = "",
+    review_id: str = "", duration_seconds: float | None = None,
+    error_type: str = "",
+) -> None:
+    """Export a small, explicitly whitelisted event as an OpenTelemetry log."""
+    if not _configured:
+        return
+    row = {"event": event, "status": status}
+    if stage:
+        row["stage"] = stage
+    if review_id:
+        row["review_id"] = review_id
+    if duration_seconds is not None:
+        row["duration_seconds"] = round(max(0.0, duration_seconds), 4)
+    if error_type:
+        row["error_type"] = error_type
+    _LOGGER.info(json.dumps(row, ensure_ascii=False))
+
+
+def record_http_completion(*, method: str, route: str, status_code: int, duration: float) -> None:
+    if not _configured:
+        return
+    attrs = {
+        "method": method if method in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"} else "OTHER",
+        "route": route,
+        "status_class": f"{status_code // 100}xx",
+    }
+    _http_calls.add(1, attributes=attrs)
+    _http_duration.record(max(0.0, duration), attributes=attrs)
+
+
+class HttpTelemetryMiddleware:
+    """ASGI middleware with bounded-cardinality route labels and no request bodies."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        started = time.perf_counter()
+        status_code = 500
+        error_type = ""
+
+        async def send_with_status(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = int(message["status"])
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_status)
+        except Exception as exc:
+            error_type = type(exc).__name__
+            raise
+        finally:
+            # Never use a raw URL path: it can include student IDs or review IDs.
+            route_info = scope.get("route")
+            route = str(getattr(route_info, "path", "") or "unmatched")
+            method = str(scope.get("method", "OTHER"))
+            elapsed = time.perf_counter() - started
+            record_http_completion(
+                method=method, route=route, status_code=status_code, duration=elapsed,
+            )
+            emit_event(
+                "http.request", status=str(status_code), stage=route,
+                duration_seconds=elapsed, error_type=error_type,
+            )
+
+
+def trace_ollama_call(func):
+    """Nested OTel span around one Ollama call; never capture prompts or images."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        started = time.perf_counter()
+        with trace.get_tracer("mathcheck.ollama").start_as_current_span("ollama.chat") as span:
+            span.set_attribute("mathcheck.llm.image_input", bool(kwargs.get("image_b64")))
+            emit_event("ollama.started", status="started", stage="ollama")
+            try:
+                result = func(*args, **kwargs)
+            except Exception as exc:
+                span.add_event("ollama.failed", {"exception.type": type(exc).__name__})
+                span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+                emit_event(
+                    "ollama.finished", status="error", stage="ollama",
+                    duration_seconds=time.perf_counter() - started,
+                    error_type=type(exc).__name__,
+                )
+                raise
+            elapsed = time.perf_counter() - started
+            span.set_attribute("mathcheck.llm.elapsed_seconds", elapsed)
+            emit_event("ollama.finished", status="done", stage="ollama", duration_seconds=elapsed)
+            return result
+
+    return wrapper
+
+
+def flush_telemetry() -> None:
+    """Useful for short-lived demo scripts; the server exports in the background."""
+    tracer = trace.get_tracer_provider()
+    meter = metrics.get_meter_provider()
+    for provider in (tracer, meter, _log_provider):
+        if provider is not None and hasattr(provider, "force_flush"):
+            provider.force_flush(timeout_millis=10000)

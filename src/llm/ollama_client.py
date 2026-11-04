@@ -10,6 +10,7 @@ from typing import Any
 
 from src.llm.config import get_ollama_base_url, get_vision_model
 from src.observability.runtime import log_llm_call
+from src.observability.otel import trace_ollama_call
 
 
 class OllamaError(RuntimeError):
@@ -163,6 +164,7 @@ def _open_streaming_post(
         raise
 
 
+@trace_ollama_call
 def ollama_chat_json(
     *,
     system_prompt: str,

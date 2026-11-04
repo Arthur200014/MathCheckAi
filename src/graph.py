@@ -11,7 +11,7 @@ from src.agents.reviewer import reviewer_agent
 from src.agents.solver import solver_agent
 from src.agents.vision import vision_agent
 from src.observability.runtime import finish_trace_span, start_trace_span
-from src.observability.otel import record_stage_completion, stage_span
+from src.observability.otel import emit_event, record_stage_completion, stage_span
 from src.progress_store import finish_stage, start_stage
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
@@ -26,7 +26,20 @@ def _timed(stage: str, func):
         span = start_trace_span(review_id=review_id, stage=stage)
         try:
             with stage_span(stage=stage, review_id=review_id):
-                result = func(state)
+                emit_event("stage.started", status="started", stage=stage, review_id=review_id)
+                try:
+                    result = func(state)
+                except Exception as exc:
+                    emit_event(
+                        "stage.finished", status="error", stage=stage, review_id=review_id,
+                        duration_seconds=time.perf_counter() - started,
+                        error_type=type(exc).__name__,
+                    )
+                    raise
+                emit_event(
+                    "stage.finished", status="done", stage=stage, review_id=review_id,
+                    duration_seconds=time.perf_counter() - started,
+                )
         except Exception as exc:
             finish_stage(review_id, stage, status="error")
             finish_trace_span(span, status="error", error=str(exc))
