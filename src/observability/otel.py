@@ -51,6 +51,7 @@ def configure_otel(app) -> bool:
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.metrics.view import View, ExplicitBucketHistogramAggregation
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -72,7 +73,29 @@ def configure_otel(app) -> bool:
         OTLPMetricExporter(endpoint=endpoint, insecure=insecure, timeout=5),
         export_interval_millis=10000,
     )
-    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    # Default OTel histogram buckets are 0, 5, 10... in the instrument unit.
+    # Our metrics are in seconds, so those defaults incorrectly estimate
+    # millisecond requests as multi-second p95 latencies.
+    meter_provider = MeterProvider(
+        resource=resource,
+        metric_readers=[metric_reader],
+        views=[
+            View(
+                instrument_name="mathcheck.http.duration",
+                aggregation=ExplicitBucketHistogramAggregation(boundaries=[
+                    0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1,
+                    0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300, 900,
+                ]),
+            ),
+            View(
+                instrument_name="mathcheck.stage.duration",
+                aggregation=ExplicitBucketHistogramAggregation(boundaries=[
+                    0.01, 0.025, 0.05, 0.1, 0.15, 0.25, 0.5, 1,
+                    2.5, 5, 10, 30, 60, 120, 300, 900,
+                ]),
+            ),
+        ],
+    )
     metrics.set_meter_provider(meter_provider)
 
     meter = meter_provider.get_meter("mathcheck.observability")
@@ -104,7 +127,7 @@ def configure_otel(app) -> bool:
 
     # The HTTP logger is inner middleware and the OTel FastAPI tracer is outer.
     # This keeps logs correlated to their current HTTP trace.
-    app.add_middleware(HttpTelemetryMiddleware)
+    app.add_middleware(HttpTelemetryMiddleware, routes=tuple(app.routes))
     FastAPIInstrumentor.instrument_app(
         app,
         tracer_provider=tracer_provider,
@@ -180,8 +203,26 @@ def record_http_completion(*, method: str, route: str, status_code: int, duratio
 
 class HttpTelemetryMiddleware:
     """ASGI middleware with bounded-cardinality route labels and no request bodies."""
-    def __init__(self, app):
+    def __init__(self, app, routes=()):
         self.app = app
+        # FastAPI executes user middleware before the router. Resolve labels
+        # against the known templates, never from a raw URL (which can contain
+        # personal information such as a student/review ID).
+        self.routes = tuple(routes)
+
+    def _route_template(self, scope) -> str:
+        from starlette.routing import Match
+
+        matched_route = scope.get("route")
+        if matched_route is not None and getattr(matched_route, "path", None):
+            return matched_route.path
+        for route in self.routes:
+            if getattr(route, "path", None) is None:
+                continue
+            match, _ = route.matches(scope)
+            if match == Match.FULL:
+                return str(route.path)
+        return "unmatched"
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -204,8 +245,7 @@ class HttpTelemetryMiddleware:
             raise
         finally:
             # Never use a raw URL path: it can include student IDs or review IDs.
-            route_info = scope.get("route")
-            route = str(getattr(route_info, "path", "") or "unmatched")
+            route = self._route_template(scope)
             method = str(scope.get("method", "OTHER"))
             elapsed = time.perf_counter() - started
             record_http_completion(

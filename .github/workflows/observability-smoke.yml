@@ -69,12 +69,19 @@ jobs:
           prometheus_url = "http://localhost:9090/api/v1/query?" + urllib.parse.urlencode({
               "query": "mathcheck_stage_calls_total"
           })
+          # Assert our HTTP labels use templates, never "unmatched" for known routes.
+          http_url = "http://localhost:9090/api/v1/query?" + urllib.parse.urlencode({
+              "query": 'mathcheck_http_requests_total{route="/api/task-types"}'
+          })
+          histogram_url = "http://localhost:9090/api/v1/query?" + urllib.parse.urlencode({
+              "query": 'mathcheck_http_duration_seconds_bucket{route="/api/task-types",le="0.005"}'
+          })
           loki_url = "http://localhost:3100/loki/api/v1/query_range?" + urllib.parse.urlencode({
               "query": '{service_name="mathcheck-ai"}',
               "limit": 100,
           })
           jaeger_url = "http://localhost:16686/api/services"
-          missing = {"prometheus", "loki", "jaeger"}
+          missing = {"prometheus", "loki", "jaeger", "labeled_routes", "fine_histogram"}
           for attempt in range(36):
               if "prometheus" in missing:
                   try:
@@ -82,6 +89,18 @@ jobs:
                           missing.remove("prometheus")
                   except Exception as exc:
                       print("Prometheus:", exc)
+              if "labeled_routes" in missing:
+                  try:
+                      if get(http_url)["data"]["result"]:
+                          missing.remove("labeled_routes")
+                  except Exception as exc:
+                      print("HTTP routes:", exc)
+              if "fine_histogram" in missing:
+                  try:
+                      if get(histogram_url)["data"]["result"]:
+                          missing.remove("fine_histogram")
+                  except Exception as exc:
+                      print("Histogram buckets:", exc)
               if "loki" in missing:
                   try:
                       if get(loki_url)["data"]["result"]:

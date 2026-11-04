@@ -1,9 +1,9 @@
 {
   "uid": "mathcheck-overview",
   "title": "MathCheck AI — Observability",
-  "description": "Real OpenTelemetry metrics exported through Collector to Prometheus",
+  "description": "Live metrics: labeled HTTP routes, precise latency buckets, single-run-friendly stage averages, stage p95 after test data",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "browser",
   "refresh": "10s",
   "tags": [
@@ -198,7 +198,7 @@
     },
     {
       "id": 5,
-      "title": "HTTP p95 latency",
+      "title": "HTTP p95 latency (observed requests)",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -213,7 +213,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mathcheck_http_duration_seconds_bucket[5m])) by (le, route))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (mathcheck_http_duration_seconds_bucket))",
           "legendFormat": "{{route}}",
           "range": true
         }
@@ -282,7 +282,7 @@
     },
     {
       "id": 7,
-      "title": "LangGraph p95 duration",
+      "title": "LangGraph average duration",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -297,7 +297,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mathcheck_stage_duration_seconds_bucket[5m])) by (le, stage))",
+          "expr": "sum by (stage) (mathcheck_stage_duration_seconds_sum) / clamp_min(sum by (stage) (mathcheck_stage_duration_seconds_count), 1)",
           "legendFormat": "{{stage}}",
           "range": true
         }
@@ -366,7 +366,7 @@
     },
     {
       "id": 9,
-      "title": "HTTP request latency p95 overall",
+      "title": "HTTP average latency",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -381,8 +381,50 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mathcheck_http_duration_seconds_bucket[5m])) by (le))",
+          "expr": "sum(mathcheck_http_duration_seconds_sum) / clamp_min(sum(mathcheck_http_duration_seconds_count), 1)",
           "legendFormat": "p95",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "LangGraph p95 latency (observed stages)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (mathcheck_stage_duration_seconds_bucket))",
+          "legendFormat": "{{stage}}",
           "range": true
         }
       ],

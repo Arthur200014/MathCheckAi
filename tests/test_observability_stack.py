@@ -42,3 +42,13 @@ def test_grafana_provisions_all_backends_and_dashboards():
     dashboard = json.loads((DEPLOY / "grafana" / "dashboards" / "mathcheck.json").read_text(encoding="utf-8"))
     assert dashboard["uid"] == "mathcheck-overview"
     assert len(dashboard["panels"]) >= 4
+
+
+def test_dashboard_duration_panels_work_with_single_observation():
+    dashboard = json.loads((DEPLOY / "grafana" / "dashboards" / "mathcheck.json").read_text(encoding="utf-8"))
+    panels = {panel["id"]: panel for panel in dashboard["panels"]}
+    assert "mathcheck_stage_duration_seconds_sum" in panels[7]["targets"][0]["expr"]
+    assert "mathcheck_stage_duration_seconds_count" in panels[7]["targets"][0]["expr"]
+    assert "histogram_quantile" in panels[10]["targets"][0]["expr"]
+    assert "rate(" not in panels[10]["targets"][0]["expr"]
+    assert "rate(" not in panels[5]["targets"][0]["expr"]
