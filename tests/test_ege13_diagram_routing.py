@@ -1,8 +1,10 @@
 from src.graph import route_after_diagram_verify, route_after_reference
 
 
-def test_reference_failure_goes_to_reviewer_without_diagram():
-    assert route_after_reference({"reference_verification_ok": False}) == "review"
+def test_reference_failure_still_goes_through_grader():
+    # The current LangGraph routes all verification outcomes to the grader.
+    # The reviewer follows the grader and is not a direct reference edge.
+    assert route_after_reference({"reference_verification_ok": False}) == "grade"
 
 
 def test_algebraic_selection_skips_diagram_agent():

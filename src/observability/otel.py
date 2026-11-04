@@ -95,7 +95,7 @@ def stage_span(*, stage: str, review_id: str) -> Iterator[None]:
         try:
             yield
         except Exception as exc:
-            span.record_exception(exc)
+            span.add_event("stage.failed", {"exception.type": type(exc).__name__})
             span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
             raise
 
