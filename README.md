@@ -292,25 +292,27 @@ python evals/run_ege13_benchmark.py
 
 Основные метрики: OCR similarity, human correction rate, score accuracy, MAE, reference success rate, manual review rate, latency по этапам, false error rate на экспертных 2 баллах и positive score rate на экспертных 0 баллах.
 
-## Observability
+## Observability — OpenTelemetry / Prometheus / Grafana / Loki / Jaeger
 
-В текущем варианте используются четыре части наблюдаемости:
+Полный стек разворачивается вместе с приложением через `docker compose up -d --build`.
 
-- **logs** — `llm_calls.jsonl`: модель, агент, latency, tokens, done reason, timeout/error;
-- **metrics** — timings этапов и агрегаты из сохранённых review;
-- **traces** — `traces.jsonl`, где одна проверка связывается по `trace_id`/`review_id`;
-- **alerts** — `alerts.jsonl`, включая `slow_llm_call` для медленных LLM-вызовов.
+- **Metrics**: OpenTelemetry SDK → Collector → Prometheus → Grafana;
+- **Logs**: структурированные безопасные события HTTP/агентов/Ollama → OTLP → Loki → Grafana;
+- **Traces**: HTTP + этапы LangGraph + вызовы Ollama → Jaeger;
+- **Legacy**: локальные `llm_calls.jsonl`, `traces.jsonl` и `alerts.jsonl` сохранены для совместимости.
 
-Реализация находится в `src/observability/runtime.py`. Порог медленного вызова задаётся `MATHCHECK_SLOW_AGENT_SECONDS`.
+Готовый дашборд Grafana автоматически подключается при первом запуске.
+Открыть: [Grafana](http://localhost:3000) (логин `admin`, пароль из
+`GRAFANA_ADMIN_PASSWORD`), [Prometheus](http://localhost:9090),
+[Jaeger](http://localhost:16686).
 
-Сравнивали и готовые варианты:
+Без Ollama для демонстрации синтетических, отдельно помеченных событий:
 
-| Вариант | Плюсы | Почему не выбрали сейчас |
-|---|---|---|
-| **локальный JSONL + SQLite** | просто, прозрачно, без внешнего сервиса | выбран |
-| LangSmith | удобные traces и debugging LangChain/LangGraph | внешний сервис для локального MVP не обязателен |
-| Langfuse | UI, traces, metrics, self-hosting | больше инфраструктуры |
-| Langtrace / OpenTelemetry | стандартный tracing и интеграции | для текущего объёма достаточно локальных событий |
+```bash
+docker compose exec mathcheck python -m scripts.demo_observability
+```
+
+Подробности, диагностика и сценарий защиты: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
 ## Тесты и CI
 

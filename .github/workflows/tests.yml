@@ -19,8 +19,12 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Compile instrumentation
+        run: python -m py_compile src/observability/otel.py src/graph.py src/llm/ollama_client.py scripts/demo_observability.py
       - name: Check eval scripts
         run: python -m py_compile evals/run_ege13_benchmark.py evals/run_ege13_vision_benchmark.py evals/run_model_selection.py evals/prepare_ege13_images.py evals/validate_ege13_release.py
       - name: Check EGE-13 release cases

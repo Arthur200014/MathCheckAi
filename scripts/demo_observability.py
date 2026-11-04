@@ -24,7 +24,9 @@ def main() -> None:
     with trace.get_tracer("mathcheck.demo").start_as_current_span("demo.review") as root:
         root.set_attribute("mathcheck.demo", True)
         root.set_attribute("mathcheck.review_id", review_id)
-        for stage in ("vision", "solver", "verify_reference", "grader", "reviewer", "build_report", "persist_review"):
+        for real_stage in ("vision", "solver", "verify_reference", "grader", "reviewer", "build_report", "persist_review"):
+            # Prefix all synthetic metric labels so dashboard counts stay distinguishable.
+            stage = f"demo_{real_stage}"
             started = time.perf_counter()
             with stage_span(stage=stage, review_id=review_id):
                 emit_event("demo.stage.started", status="started", stage=stage, review_id=review_id)
