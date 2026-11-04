@@ -142,6 +142,8 @@ python -m pytest tests/test_otel_instrumentation.py tests/test_observability_sta
 python -m pytest -q
 ```
 
-CI проверяет синтаксис Compose, структуру конфигураций и тесты Python,
-**но не запускает здесь весь Docker-стек**. Финальную интеграцию
-Prometheus + Loki + Jaeger нужно проверить на машине с Docker.
+CI выполняет два независимых сценария: `tests.yml` проверяет Compose,
+конфигурации и тесты Python; `observability-smoke.yml` **поднимает весь Docker-стек
+на GitHub runner**, создаёт синтетическую телеметрию и проверяет её наличие
+в Prometheus, Loki и Jaeger. Реальную проверку математической работы
+с локальной Ollama по-прежнему необходимо показать на машине с моделью.
