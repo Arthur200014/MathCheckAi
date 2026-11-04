@@ -119,7 +119,9 @@ def configure_otel(app) -> bool:
 def stage_span(*, stage: str, review_id: str) -> Iterator[None]:
     """Create a real OTel child span for a LangGraph stage."""
     tracer = trace.get_tracer("mathcheck.langgraph")
-    with tracer.start_as_current_span(f"langgraph.{stage}") as span:
+    with tracer.start_as_current_span(
+        f"langgraph.{stage}", record_exception=False, set_status_on_exception=False,
+    ) as span:
         span.set_attribute("mathcheck.stage", stage)
         if review_id:
             span.set_attribute("mathcheck.review_id", review_id)
@@ -220,7 +222,9 @@ def trace_ollama_call(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         started = time.perf_counter()
-        with trace.get_tracer("mathcheck.ollama").start_as_current_span("ollama.chat") as span:
+        with trace.get_tracer("mathcheck.ollama").start_as_current_span(
+            "ollama.chat", record_exception=False, set_status_on_exception=False,
+        ) as span:
             span.set_attribute("mathcheck.llm.image_input", bool(kwargs.get("image_b64")))
             emit_event("ollama.started", status="started", stage="ollama")
             try:
