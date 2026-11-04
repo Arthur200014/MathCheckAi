@@ -1,0 +1,112 @@
+name: observability-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docker-compose.yml
+      - Dockerfile
+      - requirements.txt
+      - 'src/observability/**'
+      - 'deploy/observability/**'
+      - 'scripts/demo_observability.py'
+      - '.github/workflows/observability-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: observability-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stack-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Compose
+        run: docker compose config --quiet
+
+      - name: Start the full stack (no Ollama required for smoke)
+        run: docker compose up -d --build
+
+      - name: Wait for services
+        shell: bash
+        run: |
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://localhost:8000/health \
+              && curl -fsS -o /dev/null http://localhost:9090/-/ready \
+              && curl -fsS -o /dev/null http://localhost:3100/ready \
+              && curl -fsS -o /dev/null http://localhost:3000/api/health \
+              && curl -fsS -o /dev/null http://localhost:16686/; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ready" = "1"
+
+      - name: Generate HTTP traces and explicitly synthetic LangGraph telemetry
+        run: |
+          curl -fsS http://localhost:8000/api/task-types > /dev/null
+          curl -sS -o /dev/null http://localhost:8000/api/reviews/smoke-missing
+          docker compose exec -T mathcheck python -m scripts.demo_observability
+
+      - name: Assert metrics, logs and traces reached backends
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+
+          def get(url):
+              with urllib.request.urlopen(url, timeout=10) as response:
+                  return json.load(response)
+
+          prometheus_url = "http://localhost:9090/api/v1/query?" + urllib.parse.urlencode({
+              "query": "mathcheck_stage_calls_total"
+          })
+          loki_url = "http://localhost:3100/loki/api/v1/query_range?" + urllib.parse.urlencode({
+              "query": '{service_name="mathcheck-ai"}',
+              "limit": 100,
+          })
+          jaeger_url = "http://localhost:16686/api/services"
+          missing = {"prometheus", "loki", "jaeger"}
+          for attempt in range(36):
+              if "prometheus" in missing:
+                  try:
+                      if get(prometheus_url)["data"]["result"]:
+                          missing.remove("prometheus")
+                  except Exception as exc:
+                      print("Prometheus:", exc)
+              if "loki" in missing:
+                  try:
+                      if get(loki_url)["data"]["result"]:
+                          missing.remove("loki")
+                  except Exception as exc:
+                      print("Loki:", exc)
+              if "jaeger" in missing:
+                  try:
+                      services = get(jaeger_url).get("data", [])
+                      if "mathcheck-ai" in services:
+                          missing.remove("jaeger")
+                  except Exception as exc:
+                      print("Jaeger:", exc)
+              print("Waiting for backend ingestion:", sorted(missing))
+              if not missing:
+                  break
+              time.sleep(5)
+          assert not missing, f"Missing observability signals: {sorted(missing)}"
+          print("Prometheus, Loki and Jaeger received synthetic observability data")
+          PY
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail=150 --no-color
+
+      - name: Stop containers without deleting volumes
+        if: always()
+        run: docker compose down
