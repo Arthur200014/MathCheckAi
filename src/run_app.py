@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src import api
 from src import extra_api                                                          
+from src.observability.otel import configure_otel
 from src import multi_photo_api                                               
 
 
@@ -162,4 +163,5 @@ function showScanDebug(response=null,error=null){const data={request:st.lastScan
 
 api.UI_INDEX_PATH = _build_web_ui()
 app = api.app
+configure_otel(app)
 # fix

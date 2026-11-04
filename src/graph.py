@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from langgraph.graph import END, START, StateGraph
 
 from src.agents.grader import grader_agent
@@ -9,6 +11,7 @@ from src.agents.reviewer import reviewer_agent
 from src.agents.solver import solver_agent
 from src.agents.vision import vision_agent
 from src.observability.runtime import finish_trace_span, start_trace_span
+from src.observability.otel import record_stage_completion, stage_span
 from src.progress_store import finish_stage, start_stage
 from src.state import ReviewState
 from src.task_registry import load_task_profile_node
@@ -19,15 +22,19 @@ def _timed(stage: str, func):
     def wrapped(state: ReviewState):
         review_id = str(state.get("review_id", "") or "")
         start_stage(review_id, stage)
+        started = time.perf_counter()
         span = start_trace_span(review_id=review_id, stage=stage)
         try:
-            result = func(state)
+            with stage_span(stage=stage, review_id=review_id):
+                result = func(state)
         except Exception as exc:
             finish_stage(review_id, stage, status="error")
             finish_trace_span(span, status="error", error=str(exc))
+            record_stage_completion(stage=stage, status="error", duration=time.perf_counter() - started)
             raise
         finish_stage(review_id, stage, status="done")
         finish_trace_span(span, status="done")
+        record_stage_completion(stage=stage, status="done", duration=time.perf_counter() - started)
         return result
 
     wrapped.__name__ = f"timed_{stage}"
