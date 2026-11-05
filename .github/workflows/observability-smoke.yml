@@ -10,9 +10,6 @@ on:
       - 'src/observability/**'
       - 'deploy/observability/**'
       - 'scripts/demo_observability.py'
-      - 'scripts/demo_http_load.py'
-      - 'scripts/demo_photos.py'
-      - 'demo.sh'
       - '.github/workflows/observability-smoke.yml'
   workflow_dispatch:
 
@@ -27,11 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Compose and one-command demo
-        run: |
-          docker compose config --quiet
-          bash -n demo.sh
-          bash demo.sh --help
+      - name: Validate Compose
+        run: docker compose config --quiet
 
       - name: Start the full stack (no Ollama required for smoke)
         run: docker compose up -d --build
@@ -57,8 +51,7 @@ jobs:
         run: |
           curl -fsS http://localhost:8000/api/task-types > /dev/null
           curl -sS -o /dev/null http://localhost:8000/api/reviews/smoke-missing
-          docker compose exec -T mathcheck python -m scripts.demo_observability --runs 4 --delay 0.03
-          docker compose exec -T mathcheck python -m scripts.demo_http_load --requests 12 --interval 0.03
+          docker compose exec -T mathcheck python -m scripts.demo_observability
 
       - name: Assert metrics, logs and traces reached backends
         shell: bash

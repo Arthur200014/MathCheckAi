@@ -28,7 +28,6 @@ _stage_calls = None
 _stage_duration = None
 _stage_errors = None
 _completed_reviews = None
-_demo_reviews = None
 
 
 def otel_enabled() -> bool:
@@ -38,7 +37,7 @@ def otel_enabled() -> bool:
 def configure_otel(app) -> bool:
     """Configure OTLP exporters and FastAPI exactly once, when explicitly enabled."""
     global _configured, _stage_calls, _stage_duration, _stage_errors, _completed_reviews
-    global _log_provider, _http_calls, _http_duration, _demo_reviews
+    global _log_provider, _http_calls, _http_duration
     if _configured:
         return True
     if not otel_enabled():
@@ -112,11 +111,6 @@ def configure_otel(app) -> bool:
     _completed_reviews = meter.create_counter(
         "mathcheck.reviews.completed", description="Reviews persisted successfully", unit="1",
     )
-    _demo_reviews = meter.create_counter(
-        "mathcheck.demo.reviews",
-        description="Clearly marked synthetic review runs, not real student assessments",
-        unit="1",
-    )
     _http_calls = meter.create_counter(
         "mathcheck.http.requests", description="HTTP requests served", unit="1",
     )
@@ -173,14 +167,6 @@ def record_stage_completion(*, stage: str, status: str, duration: float) -> None
         _stage_errors.add(1, attributes={"stage": stage})
     if stage == "persist_review" and status == "done":
         _completed_reviews.add(1)
-
-
-def record_demo_review(*, with_error: bool = False) -> None:
-    """Separate demo-only counter; never inflate the real completed reviews."""
-    if _configured:
-        _demo_reviews.add(1, attributes={
-            "mode": "with_error" if with_error else "success",
-        })
 
 
 def emit_event(

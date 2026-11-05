@@ -46,35 +46,3 @@ def test_demo_error_is_explicit_only(monkeypatch, capsys, args, expected_failure
     assert len(metrics) == (8 if expected_failure else 7)
     assert all(m["status"] == "done" for m in metrics[:7])
     assert ("mode=with_error" if expected_failure else "mode=success") in capsys.readouterr().out
-
-
-def test_bulk_runs_generate_many_stages_without_errors(monkeypatch):
-    monkeypatch.setenv("MATHCHECK_OTEL_ENABLED", "true")
-    monkeypatch.setattr(demo, "configure_otel", lambda app: True)
-    monkeypatch.setattr(demo, "flush_telemetry", lambda: None)
-    monkeypatch.setattr(demo.time, "sleep", lambda seconds: None)
-    recorded = []
-    reviews = []
-
-    @contextmanager
-    def fake_stage_span(*, stage, review_id):
-        recorded.append((stage, review_id))
-        yield
-
-    monkeypatch.setattr(demo, "stage_span", fake_stage_span)
-    monkeypatch.setattr(demo, "emit_event", lambda *args, **kwargs: None)
-    monkeypatch.setattr(demo, "record_stage_completion", lambda **kwargs: None)
-    monkeypatch.setattr(demo, "record_demo_review", lambda **kwargs: reviews.append(kwargs))
-
-    demo.main(["--runs", "4", "--delay", "0"])
-
-    assert len(recorded) == 4 * len(demo.STAGES)
-    assert len(set(review_id for _, review_id in recorded)) == 4
-    assert reviews == [{"with_error": False}] * 4
-
-
-@pytest.mark.parametrize("args", [["--runs", "0"], ["--runs", "201"], ["--delay", "-1"]])
-def test_bulk_demo_rejects_unsafe_options(monkeypatch, args):
-    monkeypatch.setenv("MATHCHECK_OTEL_ENABLED", "true")
-    with pytest.raises(SystemExit):
-        demo.main(args)
