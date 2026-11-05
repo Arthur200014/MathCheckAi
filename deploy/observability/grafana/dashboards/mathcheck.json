@@ -1,9 +1,9 @@
 {
   "uid": "mathcheck-overview",
   "title": "MathCheck AI — Observability",
-  "description": "Live metrics: labeled HTTP routes, precise latency buckets, single-run-friendly stage averages, stage p95 after test data",
+  "description": "Real HTTP metrics and safely separated synthetic demo metrics, with Grafana, Loki and Jaeger",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "timezone": "browser",
   "refresh": "10s",
   "tags": [
@@ -30,7 +30,7 @@
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 8,
+        "w": 6,
         "h": 5
       },
       "targets": [
@@ -73,9 +73,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 8,
+        "x": 6,
         "y": 0,
-        "w": 8,
+        "w": 6,
         "h": 5
       },
       "targets": [
@@ -118,9 +118,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 16,
+        "x": 12,
         "y": 0,
-        "w": 8,
+        "w": 6,
         "h": 5
       },
       "targets": [
@@ -446,6 +446,51 @@
           "mode": "multi",
           "sort": "none"
         }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Synthetic reviews (demo)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mathcheck_demo_reviews_total) or vector(0)",
+          "legendFormat": "demo",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
       }
     }
   ]
