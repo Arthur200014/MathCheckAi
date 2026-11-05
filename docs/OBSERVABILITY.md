@@ -96,13 +96,26 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/reviews/missi
 docker compose exec mathcheck python -m scripts.demo_observability
 ```
 
+По умолчанию скрипт создаёт **только успешные этапы**. Если нужно специально
+продемонстрировать обнаружение ошибки, запусти второй режим:
+
+```bash
+docker compose exec mathcheck python -m scripts.demo_observability --with-error
+```
+
+Только этот запуск добавляет `langgraph.demo_failure` со статусом ERROR
+и метрику ошибки. Старые красные трассировки в Jaeger не исчезают сразу:
+можно ограничить поиск последними минутами или найти новый `review_id`.
+Реальные ошибки в обычной работе приложения продолжают регистрироваться
+независимо от режима демо.
+
 Через несколько секунд открой:
 
 1. Prometheus → Status → Targets. Цель `mathcheck-otel` должна быть UP.
 2. Grafana → Dashboards → MathCheck AI — Observability. Посмотри количество запросов и длительности этапов.
 3. Grafana → Explore → Loki, запрос `{service_name="mathcheck-ai"}`. Можно искать `demo_` и `stage.finished`.
 4. Jaeger → Service `mathcheck-ai` → Find Traces. Открой `demo.review` и вложенные `langgraph.demo_*`.
-5. В трейсе `demo_failure` должен быть статус ERROR, а в Loki — соответствующее событие.
+5. После обычного запуска в новом `demo.review` **не должно** быть `demo_failure`; после запуска с `--with-error` этот span будет красным, а в Loki появится событие об ошибке.
 
 **Демонстрационные измерения не являются результатами реальной проверки.**
 Для полной защиты повтори сценарий с фотографией, работающей Ollama,

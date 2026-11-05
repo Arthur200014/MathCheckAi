@@ -312,6 +312,12 @@ python evals/run_ege13_benchmark.py
 docker compose exec mathcheck python -m scripts.demo_observability
 ```
 
+По умолчанию демонстрация успешная. Чтобы **намеренно создать одну тестовую ошибку**:
+
+```bash
+docker compose exec mathcheck python -m scripts.demo_observability --with-error
+```
+
 Подробности, диагностика и сценарий защиты: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
 ## Тесты и CI
