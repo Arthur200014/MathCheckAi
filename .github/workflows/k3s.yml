@@ -32,7 +32,9 @@ jobs:
           kubectl get nodes -o wide
       - name: Check cluster networking
         run: |
+          kubectl -n kube-system wait --for=create deployment/coredns --timeout=180s
           kubectl -n kube-system rollout status deployment/coredns --timeout=180s
+          kubectl -n kube-system wait --for=condition=Ready pod -l k8s-app=kube-dns --timeout=180s
           kubectl run network-check --image=busybox:1.37 --restart=Never --command -- sh -ec 'nslookup kubernetes.default.svc.cluster.local; nc -w 5 kubernetes.default.svc.cluster.local 443 </dev/null'
           kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/network-check --timeout=120s || { kubectl describe pod network-check; kubectl logs network-check; exit 1; }
           kubectl logs network-check
@@ -67,6 +69,9 @@ jobs:
         run: |
           kubectl -n mathcheck get pods,pvc,svc,cluster,cronjob,job -o wide || true
           kubectl -n mathcheck get events --sort-by=.lastTimestamp || true
+          kubectl -n kube-system get pods,deployments -o wide || true
+          kubectl -n kube-system get events --sort-by=.lastTimestamp || true
+          kubectl -n kube-system logs deployment/coredns --tail=80 || true
           kubectl -n cnpg-system get pods || true
           kubectl -n mathcheck get cluster mathcheck-db -o yaml || true
           kubectl -n mathcheck describe pods || true
