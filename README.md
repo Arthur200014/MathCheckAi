@@ -399,6 +399,10 @@ docker compose up --build
 
 Контейнер подключается к Ollama через `host.docker.internal:11434`. SQLite, reports и observability вынесены в локальные volume-папки.
 
+### Kubernetes (k3s)
+
+[Развёртывание, Helm, CNPG, бэкапы и проверка](deploy/k3s/README.md). Два экземпляра приложения и две БД PostgreSQL. [Результат CI](https://github.com/Arthur200014/MathCheckAi/actions/runs/45434731370).
+
 ## Что можно улучшить дальше
 
 Основные ограничения сейчас — скорость локального Vision и поддержка только одного типа задания. Следующие логичные шаги: оптимизировать Vision, добавить другие задания второй части и при большом объёме истории подключить semantic/graph memory поверх SQLite, не заменяя точное хранилище баллов и статусов.
