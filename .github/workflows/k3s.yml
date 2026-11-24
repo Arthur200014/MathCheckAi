@@ -1,0 +1,58 @@
+name: k3s
+
+on:
+  push:
+    branches: ['homework/k3s-cnpg']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k3s-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cluster:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k3s
+        run: |
+          curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.34.3+k3s1 sh -s - server --disable traefik --disable servicelb
+          mkdir -p "$HOME/.kube"
+          sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
+          kubectl wait --for=condition=Ready nodes --all --timeout=180s
+          kubectl get nodes -o wide
+      - name: Install operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg cnpg/cloudnative-pg --version 0.29.2 -n cnpg-system --create-namespace --wait --timeout 5m
+          kubectl wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=120s
+      - name: Build image
+        run: |
+          docker build -t mathcheck-ai:k3s .
+          docker save mathcheck-ai:k3s | sudo k3s ctr images import -
+      - name: Deploy
+        run: |
+          helm lint deploy/k3s/chart
+          helm template mathcheck deploy/k3s/chart > /tmp/mathcheck.yaml
+          helm upgrade --install mathcheck deploy/k3s/chart -n mathcheck --create-namespace
+      - name: Verify
+        run: |
+          set -o pipefail
+          bash deploy/k3s/verify.sh | tee k3s-results.txt
+      - name: Diagnostics
+        if: always()
+        run: |
+          kubectl -n mathcheck get pods,pvc,svc,cluster,cronjob,job -o wide || true
+          kubectl -n mathcheck get events --sort-by=.lastTimestamp || true
+          kubectl -n cnpg-system get pods || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k3s-results
+          path: k3s-results.txt
+          if-no-files-found: ignore
