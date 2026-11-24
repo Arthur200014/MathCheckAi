@@ -9,7 +9,7 @@ database:
   instances: 2
   storageClass: local-path
   storage: 5Gi
-  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-202610260819-system-bookworm@sha256:9cf9466e674a794aee83693b9c28d8b3103d612a943bf144117a718b97b9d1db
 sharedStorage:
   storageClass: local-path
   size: 2Gi

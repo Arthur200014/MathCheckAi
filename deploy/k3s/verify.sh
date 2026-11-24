@@ -6,6 +6,7 @@ test "${MATHCHECK_DEMO:-}" = 1 || { echo 'Set MATHCHECK_DEMO=1 only on a disposa
 k() { kubectl -n "$ns" "$@"; }
 
 k wait --for=condition=Ready cluster/mathcheck-db --timeout=600s
+k wait --for=jsonpath='{.status.readyInstances}'=2 cluster/mathcheck-db --timeout=300s
 k rollout status deployment/mathcheck-app --timeout=300s
 k get pods,pvc,svc,cluster,cronjob -o wide
 helm list -n "$ns"

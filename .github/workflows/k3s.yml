@@ -25,6 +25,13 @@ jobs:
           sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
           kubectl wait --for=condition=Ready nodes --all --timeout=180s
           kubectl get nodes -o wide
+      - name: Check cluster networking
+        run: |
+          kubectl -n kube-system rollout status deployment/coredns --timeout=180s
+          kubectl run network-check --image=busybox:1.37 --restart=Never --command -- sh -ec 'nslookup kubernetes.default.svc.cluster.local; nc -w 5 kubernetes.default.svc.cluster.local 443 </dev/null'
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/network-check --timeout=120s || { kubectl describe pod network-check; kubectl logs network-check; exit 1; }
+          kubectl logs network-check
+          kubectl delete pod network-check
       - name: Install operator
         run: |
           helm repo add cnpg https://cloudnative-pg.github.io/charts
@@ -43,13 +50,22 @@ jobs:
       - name: Verify
         run: |
           set -o pipefail
-          MATHCHECK_DEMO=1 bash deploy/k3s/verify.sh | tee k3s-results.txt
+          MATHCHECK_DEMO=1 bash deploy/k3s/verify.sh 2>&1 | tee k3s-results.txt
       - name: Diagnostics
         if: always()
         run: |
           kubectl -n mathcheck get pods,pvc,svc,cluster,cronjob,job -o wide || true
           kubectl -n mathcheck get events --sort-by=.lastTimestamp || true
           kubectl -n cnpg-system get pods || true
+          kubectl -n mathcheck get cluster mathcheck-db -o yaml || true
+          kubectl -n mathcheck describe pods || true
+          kubectl -n cnpg-system logs deployment/cnpg-cloudnative-pg --all-containers --tail=300 || true
+          for pod in $(kubectl -n mathcheck get pods -l cnpg.io/cluster=mathcheck-db -o name); do
+            echo "$pod"
+            kubectl -n mathcheck logs "$pod" --all-containers --tail=300 || true
+            kubectl -n mathcheck logs "$pod" -c postgres --previous --tail=100 || true
+          done
+          sudo journalctl -u k3s --no-pager -n 120 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
