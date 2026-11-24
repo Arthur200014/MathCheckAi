@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from contextlib import contextmanager
+from src.postgres_store import postgres_connection, postgres_enabled
 import threading
 import time
 
@@ -18,11 +21,31 @@ _STAGE_LABELS = {
 }
 
 
+@contextmanager
+def _progress_item(review_id: str, *, write: bool = True):
+    if not postgres_enabled():
+        with _LOCK:
+            yield _PROGRESS
+        return
+    with postgres_connection() as conn:
+        if write:
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(?))", (review_id,))
+        row = conn.execute("SELECT payload_json FROM review_progress WHERE review_id=?", (review_id,)).fetchone()
+        items = {review_id: json.loads(row["payload_json"])} if row else {}
+        yield items
+        if write and review_id in items:
+            conn.execute(
+                "INSERT INTO review_progress(review_id, payload_json) VALUES (?, ?) "
+                "ON CONFLICT(review_id) DO UPDATE SET payload_json=excluded.payload_json",
+                (review_id, json.dumps(items[review_id], ensure_ascii=False)),
+            )
+
+
 def reset_progress(review_id: str) -> None:
     if not review_id:
         return
-    with _LOCK:
-        _PROGRESS[review_id] = {
+    with _progress_item(review_id) as items:
+        items[review_id] = {
             "review_id": review_id,
             "started_at": time.time(),
             "current_stage": "",
@@ -34,8 +57,8 @@ def start_stage(review_id: str, stage: str) -> None:
     if not review_id:
         return
     now = time.time()
-    with _LOCK:
-        item = _PROGRESS.setdefault(
+    with _progress_item(review_id) as items:
+        item = items.setdefault(
             review_id,
             {"review_id": review_id, "started_at": now, "current_stage": "", "stages": {}},
         )
@@ -53,8 +76,8 @@ def finish_stage(review_id: str, stage: str, *, status: str = "done") -> None:
     if not review_id:
         return
     now = time.time()
-    with _LOCK:
-        item = _PROGRESS.get(review_id)
+    with _progress_item(review_id) as items:
+        item = items.get(review_id)
         if not item:
             return
         row = item.get("stages", {}).get(stage)
@@ -70,8 +93,8 @@ def finish_stage(review_id: str, stage: str, *, status: str = "done") -> None:
 
 def progress_snapshot(review_id: str) -> dict:
     now = time.time()
-    with _LOCK:
-        item = _PROGRESS.get(review_id)
+    with _progress_item(review_id, write=False) as items:
+        item = items.get(review_id)
         if not item:
             return {"review_id": review_id, "current_stage": "", "total_elapsed_seconds": 0.0, "stages": []}
         stages = []

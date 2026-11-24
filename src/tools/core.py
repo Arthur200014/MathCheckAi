@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
+from src.postgres_store import postgres_connection, postgres_enabled
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -51,7 +53,7 @@ def compact_criteria_summary(task_type: str) -> str:
     )
 
 
-def _connect() -> sqlite3.Connection:
+def _connect_sqlite() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -73,6 +75,20 @@ def _connect() -> sqlite3.Connection:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_reviews_student ON reviews(student_id, created_at)")
     return conn
+
+
+@contextmanager
+def _connect():
+    if postgres_enabled():
+        with postgres_connection() as conn:
+            yield conn
+        return
+    conn = _connect_sqlite()
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def _json_safe(value: Any) -> Any:
@@ -123,13 +139,13 @@ def save_review(review: dict[str, Any]) -> str:
                 json.dumps(payload, ensure_ascii=False),
             ),
         )
-    return str(DB_PATH)
+    return "postgresql:reviews" if postgres_enabled() else str(DB_PATH)
 
 
 def load_review(review_id: str) -> dict[str, Any] | None:
 
     rid = str(review_id or "").strip()
-    if not rid or not DB_PATH.exists():
+    if not rid or (not postgres_enabled() and not DB_PATH.exists()):
         return None
     with _connect() as conn:
         row = conn.execute(
@@ -149,7 +165,7 @@ def load_review(review_id: str) -> dict[str, Any] | None:
 
 
 def load_student_history(student_id: str, *, limit: int = 10) -> list[dict[str, Any]]:
-    if not DB_PATH.exists():
+    if not postgres_enabled() and not DB_PATH.exists():
         return []
     with _connect() as conn:
         rows = conn.execute(
@@ -164,7 +180,7 @@ def load_student_history(student_id: str, *, limit: int = 10) -> list[dict[str, 
 
 def metrics_summary(*, limit: int = 200) -> dict[str, Any]:
 
-    if not DB_PATH.exists():
+    if not postgres_enabled() and not DB_PATH.exists():
         return {
             "reviews": 0,
             "success_rate": None,
