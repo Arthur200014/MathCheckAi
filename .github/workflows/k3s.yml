@@ -10,12 +10,12 @@ permissions:
 
 concurrency:
   group: k3s-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   cluster:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Install k3s
@@ -43,7 +43,7 @@ jobs:
       - name: Verify
         run: |
           set -o pipefail
-          bash deploy/k3s/verify.sh | tee k3s-results.txt
+          MATHCHECK_DEMO=1 bash deploy/k3s/verify.sh | tee k3s-results.txt
       - name: Diagnostics
         if: always()
         run: |

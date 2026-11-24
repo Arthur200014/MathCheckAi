@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ns=mathcheck
+test "${MATHCHECK_DEMO:-}" = 1 || { echo 'Set MATHCHECK_DEMO=1 only on a disposable cluster'; exit 1; }
 k() { kubectl -n "$ns" "$@"; }
 
 k wait --for=condition=Ready cluster/mathcheck-db --timeout=600s
@@ -97,3 +98,41 @@ assert load_review(sys.argv[1])["final_score"] == 2
 print("Application pod replacement: OK")
 ' "$rid"
 k get pods -o wide
+
+old_primary=$(k get cluster mathcheck-db -o jsonpath='{.status.currentPrimary}')
+k delete pod "$old_primary" --grace-period=1 --wait=true
+new_primary=""
+for i in $(seq 1 90); do
+  candidate=$(k get cluster mathcheck-db -o jsonpath='{.status.currentPrimary}')
+  if [[ -n "$candidate" && "$candidate" != "$old_primary" ]]; then
+    if [[ "$(sql "$candidate" app 'SELECT pg_is_in_recovery()' 2>/dev/null || true)" == f ]]; then
+      new_primary="$candidate"
+      break
+    fi
+  fi
+  sleep 3
+done
+test -n "$new_primary"
+k wait --for=condition=Ready cluster/mathcheck-db --timeout=600s
+k rollout status deployment/mathcheck-app --timeout=300s
+k wait --for=condition=Ready pod -l app.kubernetes.io/name=mathcheck --timeout=300s
+mapfile -t livepods < <(k get pods -l app.kubernetes.io/name=mathcheck -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+test "${#livepods[@]}" = 2
+k exec "${livepods[0]}" -- python -c '
+import sys
+from src.tools.core import load_review, save_review
+rid = sys.argv[1]
+review = load_review(rid)
+assert review["final_score"] == 2
+review["review_id"] = rid + "-failover"
+save_review(review)
+' "$rid"
+k exec "${livepods[1]}" -- python -c '
+import json, sys, urllib.request
+with urllib.request.urlopen("http://127.0.0.1:8000/api/reviews/" + sys.argv[1] + "-failover", timeout=10) as response:
+    assert json.load(response)["final_score"] == 2
+print("Primary failover: OK")
+' "$rid"
+echo "Old primary: $old_primary; new primary: $new_primary"
+k get pods -l cnpg.io/cluster=mathcheck-db -L role
+k get cluster mathcheck-db

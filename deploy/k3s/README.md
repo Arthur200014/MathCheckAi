@@ -21,7 +21,7 @@ export KUBECONFIG="$HOME/.kube/mathcheck-k3s.yaml"
 kubectl get nodes
 helm repo add cnpg https://cloudnative-pg.github.io/charts
 helm repo update
-helm upgrade --install cnpg cnpg/cloudnative-pg -n cnpg-system --create-namespace --wait --timeout 5m
+helm upgrade --install cnpg cnpg/cloudnative-pg --version 0.29.2 -n cnpg-system --create-namespace --wait --timeout 5m
 kubectl wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=120s
 docker build -t mathcheck-ai:k3s .
 docker save mathcheck-ai:k3s | sudo k3s ctr images import -
@@ -51,4 +51,4 @@ kubectl -n mathcheck logs job/mathcheck-backup-demo
 
 ## GitHub Actions
 
-Workflow `k3s` запускает отдельный кластер на Linux runner. Скрипт `bash deploy/k3s/verify.sh` проверяет роли PostgreSQL, запись и чтение между подами, репликацию, создание и восстановление дампа в отдельную базу и пересоздание пода приложения. Для теста используются синтетические данные. Ollama в CI не запускается. Кластер runner удаляется по завершении задания; для постоянного доступа нужен отдельный сервер.
+Workflow `k3s` запускает отдельный кластер на Linux runner. Скрипт `MATHCHECK_DEMO=1 bash deploy/k3s/verify.sh` проверяет роли PostgreSQL, запись и чтение между подами, репликацию, создание и восстановление дампа в отдельную базу пересоздание пода приложения и автоматическое переключение primary на реплику. Скрипт удаляет поды приложения и primary PostgreSQL; запускать только в отдельном тестовом кластере. Для теста используются синтетические данные. Ollama в CI не запускается. Кластер runner удаляется по завершении задания; для постоянного доступа нужен отдельный сервер.
