@@ -1,16 +1,50 @@
-# Kubernetes homework — MathCheckAi
-Deadline: 25 November 2026. Target: k3s + Helm + CNPG primary/replica + backups + multiple app pods.
+# MathCheckAi / k3s
 
-## Plan / handoff
-- [x] Inspect main: FastAPI, Dockerfile port 8000, external Ollama, SQLite history, local pending files, in-memory progress.
-- [x] Implement opt-in PostgreSQL history adapter and integration test (execution pending).
-- [ ] Move pending images/state and progress to shared durable storage; handle report files across pods and accurate UI storage labels.
-- [ ] Prepare Helm charts: CloudNativePG cluster (2 instances), app Deployment (2 replicas), Service, health checks, configuration and secrets.
-- [ ] Configure backups (scheduled pg_dump to separate persistent storage and verify restore; native CNPG object storage backups if required by rubric).
-- [ ] Install k3s and operator via Helm, build/import app image, deploy to isolated namespace.
-- [ ] Verify both pods, primary/replica, cross-pod review state, backup/restore, failover, and real Ollama workflow.
-- [ ] Document commands and real evidence; do not report unexecuted checks as passed.
+## План
 
-## Decisions
-Separate branch, no changes to main or existing Docker Compose. Single-node k3s is sufficient for the homework demo, not node-level HA. PostgreSQL is optional outside Kubernetes. Existing SQLite data is not migrated automatically; demo uses a fresh database. No credentials in Git.
-Existing Dockerfile is reusable. Ollama runs separately and must be reachable from pods; full model execution requires model resources.
+- [x] Анализ проекта.
+- [x] PostgreSQL для истории и прогресса.
+- [x] Helm Chart: приложение, CNPG, хранилища, CronJob.
+- [ ] Установка и запуск k3s.
+- [ ] Проверка двух подов, репликации, бэкапа, восстановления и переключения primary.
+- [ ] Проверка запроса к Ollama.
+
+## Запуск
+
+На отдельной Linux-машине с установленными Docker и Helm:
+
+```sh
+curl -sfL https://get.k3s.io | sh -
+mkdir -p ~/.kube
+sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/mathcheck-k3s.yaml
+export KUBECONFIG="$HOME/.kube/mathcheck-k3s.yaml"
+kubectl get nodes
+helm repo add cnpg https://cloudnative-pg.github.io/charts
+helm repo update
+helm upgrade --install cnpg cnpg/cloudnative-pg -n cnpg-system --create-namespace --wait --timeout 5m
+kubectl wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=120s
+docker build -t mathcheck-ai:k3s .
+docker save mathcheck-ai:k3s | sudo k3s ctr images import -
+helm lint deploy/k3s/chart
+helm upgrade --install mathcheck deploy/k3s/chart -n mathcheck --create-namespace --set-string ollama.baseUrl=http://OLLAMA_HOST:11434
+kubectl -n mathcheck wait --for=condition=Ready cluster/mathcheck-db --timeout=600s
+kubectl -n mathcheck rollout status deployment/mathcheck-app --timeout=300s
+kubectl -n mathcheck port-forward svc/mathcheck-app 8000:8000
+```
+
+Вместо OLLAMA_HOST указать доступный из кластера адрес Ollama. Не использовать 127.0.0.1 для внешнего Ollama. Для полной проверки нужны установленные модели. Открыть http://localhost:8000.
+
+## Проверка
+
+```sh
+kubectl -n mathcheck get pods,pvc,svc,cluster,cronjob
+kubectl -n mathcheck get pods -l cnpg.io/cluster=mathcheck-db -L role
+helm list -n mathcheck
+kubectl -n mathcheck create job --from=cronjob/mathcheck-backup mathcheck-backup-demo
+kubectl -n mathcheck wait --for=condition=complete job/mathcheck-backup-demo --timeout=300s
+kubectl -n mathcheck logs job/mathcheck-backup-demo
+```
+
+Бэкап: логический pg_dump каждые шесть часов, отдельный PVC, хранение семь дней. Проверка восстановления в отдельную БД ещё не проведена. Файлы изображений и отчётов находятся на общем PVC и не входят в pg_dump. Для защиты от потери узла копии нужно выносить за пределы узла.
+
+Один узел k3s: оба экземпляра приложения используют общий PVC ReadWriteOnce на этом узле. Это демонстрация отказа пода, а не отказа физической машины. SQLite остаётся вариантом локального запуска. Перенос старых данных не выполняется.

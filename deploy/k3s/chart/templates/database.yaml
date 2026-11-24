@@ -1,0 +1,17 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-db
+spec:
+  instances: {{ .Values.database.instances }}
+  imageName: {{ .Values.database.imageName | quote }}
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  storage:
+    storageClass: {{ .Values.database.storageClass | quote }}
+    size: {{ .Values.database.storage | quote }}
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: preferred

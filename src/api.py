@@ -121,6 +121,18 @@ def web_ui():
     return FileResponse(UI_INDEX_PATH, media_type="text/html; charset=utf-8")
 
 
+@app.get("/ready")
+def ready():
+    if os.getenv("MATHCHECK_DATABASE_URL"):
+        from src.postgres_store import postgres_connection
+        try:
+            with postgres_connection() as conn:
+                conn.execute("SELECT 1")
+        except Exception:
+            raise HTTPException(status_code=503, detail="database unavailable")
+    return {"status": "ready"}
+
+
 @app.get("/health")
 def health():
     return {
