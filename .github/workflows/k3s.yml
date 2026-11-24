@@ -1,0 +1,91 @@
+name: k3s
+
+on:
+  push:
+    branches: ['homework/k3s-cnpg']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k3s-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  cluster:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host
+        run: |
+          cat /etc/os-release
+          uname -a
+          sysctl kernel.apparmor_restrict_unprivileged_unconfined 2>/dev/null || true
+      - name: Install k3s
+        run: |
+          curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.34.3+k3s1 sh -s - server --disable traefik --disable servicelb
+          mkdir -p "$HOME/.kube"
+          sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
+          kubectl wait --for=condition=Ready nodes --all --timeout=180s
+          kubectl get nodes -o wide
+      - name: Check cluster networking
+        run: |
+          kubectl -n kube-system wait --for=create deployment/coredns --timeout=180s
+          kubectl -n kube-system rollout status deployment/coredns --timeout=180s
+          kubectl -n kube-system wait --for=condition=Ready pod -l k8s-app=kube-dns --timeout=180s
+          kubectl run network-check --image=busybox:1.37 --restart=Never --command -- sh -ec 'nslookup kubernetes.default.svc.cluster.local; nc -w 5 kubernetes.default.svc.cluster.local 443 </dev/null'
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/network-check --timeout=120s || { kubectl describe pod network-check; kubectl logs network-check; exit 1; }
+          kubectl logs network-check
+          kubectl delete pod network-check
+      - name: Check process signals
+        run: |
+          kubectl run signal-check --image=busybox:1.37 --restart=Never --overrides='{"spec":{"containers":[{"name":"signal-check","image":"busybox:1.37","command":["sh","-ec","cat /proc/self/attr/current; sleep 60 & pid=$!; kill -0 $pid; kill -TERM $pid; wait $pid || test $? -eq 143"],"securityContext":{"runAsUser":26,"runAsGroup":26,"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}}}]}}'
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/signal-check --timeout=90s || { kubectl describe pod signal-check; kubectl logs signal-check; sudo journalctl -k --no-pager -n 100; exit 1; }
+          kubectl logs signal-check
+          kubectl delete pod signal-check
+      - name: Install operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg cnpg/cloudnative-pg --version 0.29.2 -n cnpg-system --create-namespace --wait --timeout 5m
+          kubectl wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=120s
+      - name: Build image
+        run: |
+          docker build -t mathcheck-ai:k3s .
+          docker save mathcheck-ai:k3s | sudo k3s ctr images import -
+      - name: Deploy
+        run: |
+          helm lint deploy/k3s/chart
+          helm template mathcheck deploy/k3s/chart > /tmp/mathcheck.yaml
+          helm upgrade --install mathcheck deploy/k3s/chart -n mathcheck --create-namespace
+      - name: Verify
+        run: |
+          set -o pipefail
+          MATHCHECK_DEMO=1 bash deploy/k3s/verify.sh 2>&1 | tee k3s-results.txt
+      - name: Diagnostics
+        if: always()
+        run: |
+          kubectl -n mathcheck get pods,pvc,svc,cluster,cronjob,job -o wide || true
+          kubectl -n mathcheck get events --sort-by=.lastTimestamp || true
+          kubectl -n kube-system get pods,deployments -o wide || true
+          kubectl -n kube-system get events --sort-by=.lastTimestamp || true
+          kubectl -n kube-system logs deployment/coredns --tail=80 || true
+          kubectl -n cnpg-system get pods || true
+          kubectl -n mathcheck get cluster mathcheck-db -o yaml || true
+          kubectl -n mathcheck describe pods || true
+          kubectl -n cnpg-system logs deployment/cnpg-cloudnative-pg --all-containers --tail=300 || true
+          for pod in $(kubectl -n mathcheck get pods -l cnpg.io/cluster=mathcheck-db -o name); do
+            echo "$pod"
+            kubectl -n mathcheck logs "$pod" --all-containers --tail=300 || true
+            kubectl -n mathcheck logs "$pod" -c postgres --previous --tail=100 || true
+          done
+          sudo journalctl -u k3s --no-pager -n 120 || true
+          sudo journalctl -k --no-pager | grep -Ei 'apparmor.*denied|audit.*denied' | tail -80 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k3s-results
+          path: k3s-results.txt
+          if-no-files-found: ignore

@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: {{ .Values.backup.image | quote }}
+              env:
+                - name: PGHOST
+                  value: {{ .Release.Name }}-db-rw
+                - name: PGDATABASE
+                  value: app
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-app
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-app
+                      key: password
+                - name: PGCONNECT_TIMEOUT
+                  value: "10"
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+                  file="/backups/mathcheck-$stamp.dump"
+                  trap 'rm -f "$file.tmp"' EXIT
+                  pg_dump --format=custom --no-owner --no-acl --file="$file.tmp"
+                  pg_restore --list "$file.tmp" >/dev/null
+                  mv "$file.tmp" "$file"
+                  find /backups -name 'mathcheck-*.dump' -type f -mtime +7 -delete
+                  ls -lh "$file"
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ .Release.Name }}-backups

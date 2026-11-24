@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import os
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from src.tools.ege13_reference import _extract_part_b_interval, _equal, _sympify
 from src.tools.solution_steps import split_solution_step_texts
 
 
-REPORT_DIR = Path("/tmp/mathcheck-ai/report-assets")
+REPORT_DIR = Path(os.getenv("MATHCHECK_REPORT_ASSETS_DIR", "/tmp/mathcheck-ai/report-assets"))
 
 
 def extract_solution_steps(transcript: str, *, max_steps: int = 24) -> list[dict[str, str]]:

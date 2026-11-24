@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -157,6 +158,8 @@ function showScanDebug(response=null,error=null){const data={request:st.lastScan
     )
 
     output = Path(tempfile.gettempdir()) / "mathcheck-index.html"
+    if os.getenv("MATHCHECK_DATABASE_URL"):
+        source = source.replace("SQLite", "PostgreSQL").replace("source:'sqlite'", "source:'postgresql'")
     output.write_text(source, encoding="utf-8")
     return output
 
